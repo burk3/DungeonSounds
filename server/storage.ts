@@ -166,7 +166,17 @@ async function getAllUserKeys(): Promise<string[]> {
   try {
     // List all keys that start with "user:"
     const keys = await db.list("user:");
-    return Object.keys(keys);
+    console.log("Database user keys:", keys);
+    
+    // Check if keys is an object or array
+    if (Array.isArray(keys)) {
+      return keys;
+    } else if (typeof keys === 'object' && keys !== null) {
+      return Object.keys(keys);
+    } else {
+      console.error("Unexpected format for user keys:", keys);
+      return [];
+    }
   } catch (error) {
     console.error("Error listing user keys:", error);
     return [];
