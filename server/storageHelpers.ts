@@ -75,6 +75,16 @@ export async function saveUserData(email: string, userData: UserData): Promise<v
   }
 }
 
+export async function deleteUserData(email: string): Promise<void> {
+  try {
+    const key = getUserKey(email);
+    await db.delete(key);
+    console.log(`Deleted user data for: ${email}`);
+  } catch (error) {
+    console.error(`Error deleting user data for ${email}:`, error);
+  }
+}
+
 export async function getAllUserKeys(): Promise<string[]> {
   try {
     // List all keys that start with "user:"
