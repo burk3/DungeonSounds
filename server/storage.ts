@@ -11,6 +11,8 @@ import path from "path";
 import { Client } from "@replit/object-storage";
 import { Readable } from "stream";
 import Database from "@replit/database";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
 
 // Initialize Replit Object Storage
 const objectStorage = new Client({
@@ -19,7 +21,7 @@ const objectStorage = new Client({
 const BUCKET_NAME = "sounds";
 
 // Initialize Replit Database for metadata
-const db = new Database();
+const metadataDB = new Database();
 
 // Define metadata structure
 interface SoundMetadata {
@@ -35,12 +37,12 @@ async function getSoundMetadata(filename: string): Promise<SoundMetadata | null>
     // Try with clean filename (no prefix)
     const cleanFilename = filename.replace(/^sounds\//, '');
     const key = getSoundMetadataKey(cleanFilename);
-    let metadata = await db.get(key);
+    let metadata = await metadataDB.get(key);
     
     // If not found and filename was cleaned, try with original filename (might be legacy)
     if (!metadata && cleanFilename !== filename) {
       const originalKey = getSoundMetadataKey(filename);
-      metadata = await db.get(originalKey);
+      metadata = await metadataDB.get(originalKey);
       
       if (metadata) {
         console.log(`Found metadata using legacy path: ${filename}`);
@@ -69,7 +71,7 @@ async function saveSoundMetadata(filename: string, metadata: SoundMetadata): Pro
     // Always use clean filename (no prefix) for consistency
     const cleanFilename = filename.replace(/^sounds\//, '');
     const key = getSoundMetadataKey(cleanFilename);
-    await db.set(key, metadata);
+    await metadataDB.set(key, metadata);
     console.log(`Saved metadata with key: ${key}`);
   } catch (error) {
     console.error(`Error saving metadata for ${filename}:`, error);
@@ -81,13 +83,13 @@ async function deleteSoundMetadata(filename: string): Promise<void> {
     // Remove any sounds/ prefix if it exists
     const cleanFilename = filename.replace(/^sounds\//, '');
     const key = getSoundMetadataKey(cleanFilename);
-    await db.delete(key);
+    await metadataDB.delete(key);
     
     // Also try to delete with prefix (for legacy files)
     if (cleanFilename !== filename) {
       const legacyKey = getSoundMetadataKey(filename);
       try {
-        await db.delete(legacyKey);
+        await metadataDB.delete(legacyKey);
       } catch (legacyError) {
         // Ignore errors for legacy key
       }
@@ -100,7 +102,7 @@ async function deleteSoundMetadata(filename: string): Promise<void> {
 async function getAllSoundKeys(): Promise<string[]> {
   try {
     // List all keys that start with "sound:"
-    const keys = await db.list("sound:");
+    const keys = await metadataDB.list("sound:");
     return Object.keys(keys);
   } catch (error) {
     console.error("Error listing sound metadata keys:", error);
@@ -138,37 +140,44 @@ export interface IStorage {
   getObjectStorage(): any; // Exposes the Replit Object Storage client
 }
 
-export class MemStorage implements IStorage {
-  private sounds: Map<number, Sound>;
-  private allowedUsers: Map<number, AllowedUser>;
-  private currentSoundId: number;
-  private currentUserId: number;
-
+// Database Storage implementation
+export class DatabaseStorage implements IStorage {
+  private objectStorage: Client;
+  
   constructor() {
-    this.sounds = new Map();
-    this.allowedUsers = new Map();
-    this.currentSoundId = 1;
-    this.currentUserId = 1;
-
-    // Add admin user on startup (burke.cates@gmail.com)
-    this.setupAdminUser();
+    this.objectStorage = objectStorage;
+    this.setupAdminUser().catch(err => console.error("Failed to setup admin user:", err));
   }
-
+  
   private async setupAdminUser() {
-    const adminEmail = "burke.cates@gmail.com";
-    const existingAdmin = await this.getAllowedUserByEmail(adminEmail);
-
-    if (!existingAdmin) {
-      await this.createAllowedUser({
-        email: adminEmail,
-        displayName: "Admin",
-        isAdmin: true,
-        uid: null, // Will be set when user logs in
-      });
-      console.log("Admin user created:", adminEmail);
+    try {
+      // Check if admin user exists with Email
+      const adminEmail = "burke.cates@gmail.com";
+      
+      // Check if admin exists
+      const adminUser = await this.getAllowedUserByEmail(adminEmail);
+      
+      if (!adminUser) {
+        // Create admin user
+        await this.createAllowedUser({
+          email: adminEmail,
+          displayName: "Admin",
+          isAdmin: true,
+          uid: null, // Will be set when user logs in
+        });
+        console.log("Admin user created:", adminEmail);
+      } else if (!adminUser.isAdmin) {
+        // Upgrade to admin if not already
+        await this.updateAllowedUser(adminUser.id, { isAdmin: true });
+        console.log("User upgraded to admin:", adminEmail);
+      } else {
+        console.log("Admin user already exists:", adminEmail);
+      }
+    } catch (error) {
+      console.error("Failed to setup admin user:", error);
     }
   }
-
+  
   // Sound operations
   async getSounds(): Promise<Sound[]> {
     try {
@@ -177,275 +186,259 @@ export class MemStorage implements IStorage {
 
       if (!listResult.ok) {
         console.error("Failed to list files from bucket:", listResult.error);
-        return Array.from(this.sounds.values());
+        return [];
       }
 
       const files = listResult.value;
       console.log(`Found ${files.length} files in object storage`);
       
+      // Get all sounds from the database
+      const results = await db.select().from(sounds);
+      
       // Track which files we've processed to avoid duplicates
-      const processedFiles = new Set<string>();
-
-      // Convert bucket objects to Sound objects
-      const sounds: Sound[] = await Promise.all(
-        files.map(async (file) => {
-          // Clean the filename from the object storage
-          const originalFilename = file.name;
-          const cleanFilename = originalFilename.replace(/^sounds\//, '');
-          
-          // Skip if we've already processed this file (by its clean name)
-          if (processedFiles.has(cleanFilename)) {
-            return null;
-          }
-          
-          processedFiles.add(cleanFilename);
-          
-          // Find an existing sound with the same filename (with or without prefix)
-          const existingSound = Array.from(this.sounds.values()).find(sound => {
-            const cleanSoundFilename = sound.filename.replace(/^sounds\//, '');
-            return (
-              sound.filename === originalFilename || 
-              cleanSoundFilename === cleanFilename ||
-              sound.filename === cleanFilename ||
-              cleanSoundFilename === originalFilename
-            );
-          });
-
-          if (existingSound) {
-            return existingSound;
-          }
-
-          // Get metadata from database with our improved function that checks both path styles
-          const metadata = await getSoundMetadata(originalFilename);
-          
-          // Create a new sound entry using the clean filename
-          const id = this.currentSoundId++;
-          const fileNameWithoutExt = path.basename(
-            cleanFilename,
-            path.extname(cleanFilename),
-          );
-
-          const newSound: Sound = {
-            id,
-            name: fileNameWithoutExt,
-            // Store the cleaned filename without the sounds/ prefix
-            filename: cleanFilename,
-            category: "effects",
-            uploader: metadata?.uploader || null,
-            uploadedAt: metadata?.uploadedAt ? new Date(metadata.uploadedAt) : new Date(),
-          };
-
-          // Save in our in-memory collection
-          this.sounds.set(id, newSound);
-          console.log(`Added sound: ${newSound.name} (${newSound.filename})`);
-
-          return newSound;
-        }),
+      const processedFilenames = new Set<string>(
+        results.map(s => s.filename.replace(/^sounds\//, ''))
       );
-
-      // Filter out any null entries (from skipped duplicates)
-      return sounds.filter(sound => sound !== null);
+      
+      // Add any files in object storage that aren't in DB
+      const soundsToAdd: Promise<Sound>[] = [];
+      
+      for (const file of files) {
+        // Clean the filename from the object storage
+        const originalFilename = file.name;
+        const cleanFilename = originalFilename.replace(/^sounds\//, '');
+        
+        // Skip if we've already processed this file (by its clean name)
+        if (processedFilenames.has(cleanFilename)) {
+          continue;
+        }
+        
+        // Try to get metadata
+        const metadata = await getSoundMetadata(originalFilename);
+        
+        // Create sound entry for this file
+        const newSound: InsertSound = {
+          name: cleanFilename, // Use filename as fallback name
+          filename: originalFilename,
+          category: "effects", // Default category
+          uploader: metadata?.uploader || null,
+        };
+        
+        soundsToAdd.push(this.createSound(newSound));
+      }
+      
+      // Add any missing sounds
+      const newSounds = await Promise.all(soundsToAdd);
+      
+      // Combine existing and new sounds
+      return [...results, ...newSounds];
     } catch (error) {
-      console.error("Error listing sounds from object storage:", error);
-      // Fallback to in-memory sounds
-      return Array.from(this.sounds.values());
+      console.error("Error getting sounds:", error);
+      return [];
     }
   }
-
+  
   async getSoundsByCategory(category: SoundCategory): Promise<Sound[]> {
-    return Array.from(this.sounds.values()).filter(
-      (sound) => sound.category === category,
-    );
+    try {
+      return await db.select().from(sounds).where(eq(sounds.category, category));
+    } catch (error) {
+      console.error(`Error getting sounds by category ${category}:`, error);
+      return [];
+    }
   }
-
+  
   async getSound(id: number): Promise<Sound | undefined> {
-    return this.sounds.get(id);
+    try {
+      const [sound] = await db.select().from(sounds).where(eq(sounds.id, id));
+      return sound;
+    } catch (error) {
+      console.error(`Error getting sound with id ${id}:`, error);
+      return undefined;
+    }
   }
   
   async getSoundByFilename(filename: string): Promise<Sound | undefined> {
-    // Clean the filename that was passed in
-    const cleanInputFilename = filename.replace(/^sounds\//, '');
-    
-    // Find a sound by comparing with its filename, trying both with and without prefix
-    return Array.from(this.sounds.values()).find(sound => {
-      const cleanSoundFilename = sound.filename.replace(/^sounds\//, '');
-      return (
-        sound.filename === filename || 
-        cleanSoundFilename === cleanInputFilename ||
-        sound.filename === cleanInputFilename ||
-        cleanSoundFilename === filename
-      );
-    });
+    try {
+      // Try both with and without the 'sounds/' prefix
+      const [sound] = await db.select().from(sounds).where(eq(sounds.filename, filename));
+      
+      if (sound) return sound;
+      
+      // Try with the alternate version
+      const alternateFilename = filename.startsWith('sounds/') 
+        ? filename.substring(7) 
+        : `sounds/${filename}`;
+        
+      const [alternateSound] = await db.select().from(sounds).where(eq(sounds.filename, alternateFilename));
+      return alternateSound;
+    } catch (error) {
+      console.error(`Error getting sound by filename ${filename}:`, error);
+      return undefined;
+    }
   }
   
   async soundTitleExists(title: string): Promise<boolean> {
-    const filename = title; // The filename is the same as the title in our implementation
-    return !!(await this.getSoundByFilename(filename));
-  }
-
-  async createSound(insertSound: InsertSound): Promise<Sound> {
-    const id = this.currentSoundId++;
-    const sound: Sound = {
-      ...insertSound,
-      id,
-      uploader: insertSound.uploader || null,
-      uploadedAt: new Date(),
-    };
-    this.sounds.set(id, sound);
-    return sound;
-  }
-
-  async deleteSound(id: number): Promise<boolean> {
-    const sound = this.sounds.get(id);
-    if (!sound) {
+    try {
+      const [sound] = await db.select().from(sounds).where(eq(sounds.name, title));
+      return !!sound;
+    } catch (error) {
+      console.error(`Error checking if sound title exists: ${title}`, error);
       return false;
     }
-
+  }
+  
+  async createSound(insertSound: InsertSound): Promise<Sound> {
     try {
-      // Delete from object storage if we have a filename
-      if (sound.filename) {
-        // Get clean filename (remove any directory prefix)
-        const cleanFilename = sound.filename.replace(/^sounds\//, '');
-        let deleteSuccess = false;
-        
-        // Try to delete without prefix first
-        try {
-          const deleteResult = await objectStorage.delete(cleanFilename);
-          if (deleteResult.ok) {
-            console.log(`Deleted sound file from storage: ${cleanFilename}`);
-            deleteSuccess = true;
-          }
-        } catch (error) {
-          console.log(`File not found at path: ${cleanFilename}, trying with prefix...`);
-        }
-        
-        // If direct deletion failed, try with the sounds/ prefix
-        if (!deleteSuccess) {
-          try {
-            const prefixedKey = `sounds/${cleanFilename}`;
-            const deleteResult = await objectStorage.delete(prefixedKey);
-            if (deleteResult.ok) {
-              console.log(`Deleted sound file from storage: ${prefixedKey}`);
-              deleteSuccess = true;
-            } else {
-              console.error(
-                `Failed to delete sound file from storage: ${prefixedKey}`,
-                deleteResult.error,
-              );
-            }
-          } catch (error) {
-            console.error(`Error deleting with prefix: ${error}`);
-          }
-        }
-        
-        // Always delete the metadata
-        await deleteSoundMetadata(cleanFilename);
-        console.log(`Deleted metadata for: ${cleanFilename}`);
-      }
-
-      // Remove from in-memory collection regardless of storage deletion result
-      return this.sounds.delete(id);
+      const [sound] = await db.insert(sounds).values(insertSound).returning();
+      return sound;
     } catch (error) {
-      console.error(`Error deleting sound file: ${sound.filename}`, error);
-      // Still remove from in-memory collection even if storage delete fails
-      return this.sounds.delete(id);
+      console.error("Error creating sound:", error);
+      throw new Error(`Failed to create sound: ${error}`);
     }
   }
-
+  
+  async deleteSound(id: number): Promise<boolean> {
+    try {
+      // Get the sound to delete
+      const [sound] = await db.select().from(sounds).where(eq(sounds.id, id));
+      
+      if (!sound) {
+        console.error(`Sound with id ${id} not found`);
+        return false;
+      }
+      
+      // Delete from database
+      await db.delete(sounds).where(eq(sounds.id, id));
+      
+      // Delete from object storage
+      const filename = sound.filename;
+      try {
+        // Try to delete the file from object storage
+        await this.objectStorage.delete(filename);
+        console.log(`Successfully deleted file ${filename} from object storage`);
+        
+        // Also try to delete metadata
+        await deleteSoundMetadata(filename);
+        
+      } catch (error) {
+        console.error(`Error deleting file ${filename} from object storage:`, error);
+        // We continue even if deletion fails
+      }
+      
+      return true;
+    } catch (error) {
+      console.error(`Error deleting sound with id ${id}:`, error);
+      return false;
+    }
+  }
+  
   // User operations
   async getAllowedUsers(): Promise<AllowedUser[]> {
-    return Array.from(this.allowedUsers.values());
+    try {
+      return await db.select().from(allowedUsers);
+    } catch (error) {
+      console.error("Error getting allowed users:", error);
+      return [];
+    }
   }
-
+  
   async getAllowedUserByEmail(email: string): Promise<AllowedUser | undefined> {
-    return Array.from(this.allowedUsers.values()).find(
-      (user) => user.email === email,
-    );
+    try {
+      const [user] = await db.select().from(allowedUsers).where(eq(allowedUsers.email, email));
+      return user;
+    } catch (error) {
+      console.error(`Error getting allowed user by email ${email}:`, error);
+      return undefined;
+    }
   }
-
+  
   async getAllowedUserByUid(uid: string): Promise<AllowedUser | undefined> {
-    return Array.from(this.allowedUsers.values()).find(
-      (user) => user.uid === uid,
-    );
+    try {
+      const [user] = await db.select().from(allowedUsers).where(eq(allowedUsers.uid, uid));
+      return user;
+    } catch (error) {
+      console.error(`Error getting allowed user by uid ${uid}:`, error);
+      return undefined;
+    }
   }
-
+  
   async createAllowedUser(user: InsertAllowedUser): Promise<AllowedUser> {
-    const id = this.currentUserId++;
-    const newUser: AllowedUser = {
-      id,
-      email: user.email,
-      displayName: user.displayName || null,
-      isAdmin: user.isAdmin === true,
-      uid: user.uid || null,
-      lastLogin: null,
-      createdAt: new Date(),
-    };
-    this.allowedUsers.set(id, newUser);
-    return newUser;
+    try {
+      const [newUser] = await db.insert(allowedUsers).values(user).returning();
+      return newUser;
+    } catch (error) {
+      console.error("Error creating allowed user:", error);
+      throw new Error(`Failed to create allowed user: ${error}`);
+    }
   }
-
+  
   async updateAllowedUser(
     id: number,
     updates: Partial<AllowedUser>,
   ): Promise<AllowedUser | undefined> {
-    const user = this.allowedUsers.get(id);
-    if (!user) return undefined;
-
-    const updatedUser = { ...user, ...updates };
-    this.allowedUsers.set(id, updatedUser);
-    return updatedUser;
-  }
-
-  async deleteAllowedUser(id: number): Promise<boolean> {
-    return this.allowedUsers.delete(id);
-  }
-
-  async isUserAllowed(email: string): Promise<boolean> {
-    const user = await this.getAllowedUserByEmail(email);
-    return !!user;
-  }
-
-  async isUserAdmin(email: string): Promise<boolean> {
-    const user = await this.getAllowedUserByEmail(email);
-    return user ? user.isAdmin : false;
-  }
-
-  // File operations
-  async saveFile(buffer: Buffer, title: string, uploader: string | null = null): Promise<string> {
-    const ext = path.extname(title);
-    
-    // Use title as the filename (this should already include the extension from the original file)
-    // The file is stored as "Title.mp3" in the bucket
-    const filename = title;
-
-    // Create a readable stream from the buffer
-    const readableStream = new Readable();
-    readableStream.push(buffer);
-    readableStream.push(null);
-
     try {
-      // Upload the file to Object Storage without the "sounds/" directory prefix
-      // The bucket name is correctly set in the Client initialization
-      const uploadResult = await objectStorage.uploadFromStream(
-        filename,
+      const [updatedUser] = await db
+        .update(allowedUsers)
+        .set(updates)
+        .where(eq(allowedUsers.id, id))
+        .returning();
+      return updatedUser;
+    } catch (error) {
+      console.error(`Error updating allowed user with id ${id}:`, error);
+      return undefined;
+    }
+  }
+  
+  async deleteAllowedUser(id: number): Promise<boolean> {
+    try {
+      await db.delete(allowedUsers).where(eq(allowedUsers.id, id));
+      return true;
+    } catch (error) {
+      console.error(`Error deleting allowed user with id ${id}:`, error);
+      return false;
+    }
+  }
+  
+  async isUserAllowed(email: string): Promise<boolean> {
+    try {
+      const user = await this.getAllowedUserByEmail(email);
+      return !!user;
+    } catch (error) {
+      console.error(`Error checking if user is allowed: ${email}`, error);
+      return false;
+    }
+  }
+  
+  async isUserAdmin(email: string): Promise<boolean> {
+    try {
+      const user = await this.getAllowedUserByEmail(email);
+      return user?.isAdmin ?? false;
+    } catch (error) {
+      console.error(`Error checking if user is admin: ${email}`, error);
+      return false;
+    }
+  }
+  
+  // File operations
+  async saveFile(buffer: Buffer, originalname: string, uploader: string | null = null): Promise<string> {
+    // Format safe filename with timestamp & original name
+    const timestamp = Date.now();
+    const cleanedName = originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const filename = `${timestamp}_${cleanedName}`;
+    
+    try {
+      // Create a readable stream from the buffer
+      const readableStream = new Readable();
+      readableStream.push(buffer);
+      readableStream.push(null); // End of stream
+      
+      // Upload to Replit Object Storage using stream
+      await objectStorage.uploadFromStream(
+        `sounds/${filename}`,
         readableStream
       );
-
-      // Handle different response structures to make this more robust
-      if (typeof uploadResult === 'object' && uploadResult !== null) {
-        const result = uploadResult as any;
-        if (result.ok === false) {
-          console.error(
-            `Failed to upload file: ${filename}`,
-            result.error || 'Unknown error'
-          );
-          throw new Error(
-            `Failed to upload file: ${result.error || 'Unknown error'}`
-          );
-        }
-      }
       
-      // Save metadata to database
+      // Save metadata
       const metadata: SoundMetadata = {
         uploader,
         uploadedAt: new Date().toISOString()
@@ -463,18 +456,19 @@ export class MemStorage implements IStorage {
       );
     }
   }
-
+  
   getFilePath(filename: string): string {
     // Remove any 'sounds/' prefix if it exists
     const cleanFilename = filename.startsWith('sounds/') ? filename.substring(7) : filename;
     // This returns a URL path for the API endpoint that will stream the file
     return `/api/audio/${encodeURIComponent(cleanFilename)}`;
   }
-
+  
   getObjectStorage() {
     // Return the Replit Object Storage client
     return objectStorage;
   }
 }
 
-export const storage = new MemStorage();
+// Export the storage instance
+export const storage = new DatabaseStorage();
