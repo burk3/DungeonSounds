@@ -11,7 +11,6 @@ interface UploadModalProps {
 
 export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -159,25 +158,8 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
               />
             </div>
             
-            <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="sound-category">
-                Category
-              </label>
-              <select 
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                id="sound-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                required
-              >
-                <option value="">Select a category</option>
-                {SOUND_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Category is simplified, using "effects" by default */}
+            <input type="hidden" id="sound-category" value="effects" name="category" />
             
             <div className="mb-6">
               <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="sound-file">

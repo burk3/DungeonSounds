@@ -1,11 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
-import { Sound, SoundCategory, SOUND_CATEGORIES } from "@shared/schema";
+import { useEffect } from "react";
+import { Sound } from "@shared/schema";
 import { useWebSocket } from "@/lib/websocket";
 import { useSound } from "@/lib/useSound";
 import NowPlaying from "@/components/now-playing";
 import SoundCard from "@/components/sound-card";
-import CategoryTabs from "@/components/category-tabs";
 
 export default function Playback() {
   const { connected, currentSound, volume } = useWebSocket();
@@ -36,12 +35,12 @@ export default function Playback() {
       <header className="bg-gradient-to-r from-purple-800 to-purple-600 text-white shadow-lg">
         <div className="container mx-auto px-4 py-5 flex justify-between items-center">
           <div className="flex items-center">
-            <span className="material-icons text-3xl mr-3 text-amber-300">equalizer</span>
+            <span className="material-icons text-3xl mr-3 text-amber-300" aria-hidden="true">equalizer</span>
             <h1 className="font-heading text-2xl font-bold">D&D Soundboard: Playback</h1>
           </div>
           <div className="flex items-center">
             <div className={`${connected ? 'bg-green-600/40' : 'bg-red-600/40'} rounded-full px-4 py-2 flex items-center transition-colors`}>
-              <span className="material-icons mr-2">
+              <span className="material-icons mr-2" aria-hidden="true">
                 {connected ? "wifi" : "wifi_off"}
               </span>
               <span>{connected ? "Connected" : "Disconnected"}</span>
@@ -62,7 +61,7 @@ export default function Playback() {
             {/* Loading State */}
             {isLoading && (
               <div className="py-8 text-center">
-                <div className="material-icons animate-spin text-4xl text-primary mb-2">cached</div>
+                <div className="material-icons animate-spin text-4xl text-primary mb-2" aria-hidden="true">cached</div>
                 <p className="text-gray-500">Loading sounds...</p>
               </div>
             )}
@@ -70,7 +69,7 @@ export default function Playback() {
             {/* Error State */}
             {error && (
               <div className="py-8 text-center">
-                <div className="material-icons text-4xl text-error mb-2">error</div>
+                <div className="material-icons text-4xl text-error mb-2" aria-hidden="true">error</div>
                 <p className="text-gray-500">Failed to load sounds</p>
               </div>
             )}
@@ -78,8 +77,8 @@ export default function Playback() {
             {/* Empty State */}
             {!isLoading && !error && filteredSounds.length === 0 && (
               <div className="py-8 text-center">
-                <div className="material-icons text-4xl text-gray-400 mb-2">music_off</div>
-                <p className="text-gray-500">No sounds in this category yet</p>
+                <div className="material-icons text-4xl text-gray-400 mb-2" aria-hidden="true">music_off</div>
+                <p className="text-gray-500">No sounds available yet</p>
                 <p className="text-sm text-gray-400 mt-1">Use a Remote device to upload sounds</p>
               </div>
             )}
