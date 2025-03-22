@@ -76,16 +76,16 @@ export default function Playback() {
   }, [currentSound, volume, play, stop, stopSound]);
   
   return (
-    <div className="w-full min-h-screen bg-gray-50">
+    <div className="w-full min-h-screen bg-gray-900">
       {/* Header */}
-      <header className="bg-gradient-to-r from-purple-800 to-purple-600 text-white shadow-lg">
+      <header className="bg-gradient-to-r from-amber-900 to-amber-700 text-amber-100 shadow-lg">
         <div className="container mx-auto px-4 py-5 flex justify-between items-center">
           <div className="flex items-center">
             <span className="material-icons text-3xl mr-3 text-amber-300" aria-hidden="true">equalizer</span>
             <h1 className="font-heading text-2xl font-bold">D&D Soundboard: Playback</h1>
           </div>
           <div className="flex items-center">
-            <div className={`${connected ? 'bg-green-600/40' : 'bg-red-600/40'} rounded-full px-4 py-2 flex items-center transition-colors`}>
+            <div className={`${connected ? 'bg-green-800/60' : 'bg-red-900/60'} rounded-full px-4 py-2 flex items-center transition-colors`}>
               <span className="material-icons mr-2" aria-hidden="true">
                 {connected ? "wifi" : "wifi_off"}
               </span>
@@ -100,32 +100,32 @@ export default function Playback() {
       
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden border border-amber-800/40">
           <div className="p-6">
-            <h2 className="font-heading text-2xl font-bold text-gray-900 mb-6">Sound Library</h2>
+            <h2 className="font-heading text-2xl font-bold text-amber-200 mb-6">Sound Library</h2>
             
             {/* Loading State */}
             {isLoading && (
               <div className="py-8 text-center">
-                <div className="material-icons animate-spin text-4xl text-primary mb-2" aria-hidden="true">cached</div>
-                <p className="text-gray-500">Loading sounds...</p>
+                <div className="material-icons animate-spin text-4xl text-amber-500 mb-2" aria-hidden="true">cached</div>
+                <p className="text-amber-200/80">Loading sounds...</p>
               </div>
             )}
             
             {/* Error State */}
             {error && (
               <div className="py-8 text-center">
-                <div className="material-icons text-4xl text-error mb-2" aria-hidden="true">error</div>
-                <p className="text-gray-500">Failed to load sounds</p>
+                <div className="material-icons text-4xl text-red-500 mb-2" aria-hidden="true">error</div>
+                <p className="text-amber-200/80">Failed to load sounds</p>
               </div>
             )}
             
             {/* Empty State */}
             {!isLoading && !error && filteredSounds.length === 0 && (
               <div className="py-8 text-center">
-                <div className="material-icons text-4xl text-gray-400 mb-2" aria-hidden="true">music_off</div>
-                <p className="text-gray-500">No sounds available yet</p>
-                <p className="text-sm text-gray-400 mt-1">Use a Remote device to upload sounds</p>
+                <div className="material-icons text-4xl text-amber-700/60 mb-2" aria-hidden="true">music_off</div>
+                <p className="text-amber-200/80">No sounds available yet</p>
+                <p className="text-sm text-amber-200/50 mt-1">Use a Remote device to upload sounds</p>
               </div>
             )}
             

@@ -37,29 +37,33 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
   
   return (
     <div 
-      className={`sound-card bg-gray-50 rounded-lg overflow-hidden shadow hover:shadow-md cursor-pointer p-4 transition-all duration-200 ${isPlaying ? 'playing border-2 border-secondary' : ''}`}
+      className={`sound-card bg-gray-700 rounded-lg overflow-hidden shadow hover:shadow-md cursor-pointer p-4 transition-all duration-200 ${isPlaying ? 'playing border-2 border-amber-600' : 'border border-amber-900/30'}`}
+      onClick={handleClick}
     >
       <div className="flex justify-between items-start">
         <div>
-          <h3 className="font-medium text-lg">{sound.name}</h3>
-          <p className="text-sm text-gray-600">
+          <h3 className="font-medium text-lg text-amber-100">{sound.name}</h3>
+          <p className="text-sm text-amber-200/70">
             Uploaded by: {sound.uploader || "Anonymous"}
           </p>
         </div>
         <div className="flex space-x-2">
-          <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">
+          <span className="inline-block bg-gray-800 text-amber-200 text-xs px-2 py-1 rounded">
             {formatDuration(sound.duration || 0)}
           </span>
         </div>
       </div>
       <div className="mt-4 flex justify-between items-center">
-        <div className="flex items-center text-sm text-gray-500">
+        <div className="flex items-center text-sm text-amber-200/60">
           <span className="material-icons text-sm mr-1" aria-hidden="true">schedule</span>
           <span>Added {getTimeAgo(sound.uploadedAt)}</span>
         </div>
         <button 
-          className={`${isPlaying ? 'bg-error' : 'bg-secondary'} text-white rounded-full w-10 h-10 flex items-center justify-center shadow-sm`}
-          onClick={handleClick}
+          className={`${isPlaying ? 'bg-amber-800' : 'bg-amber-600'} text-white rounded-full w-10 h-10 flex items-center justify-center shadow-sm`}
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent triggering the parent onClick
+            handleClick();
+          }}
           aria-label={isPlaying ? "Stop sound" : "Play sound"}
         >
           <span className="material-icons" aria-hidden="true">
