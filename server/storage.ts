@@ -78,6 +78,8 @@ export interface IStorage {
   getSounds(): Promise<Sound[]>;
   getSoundsByCategory(category: SoundCategory): Promise<Sound[]>;
   getSound(id: number): Promise<Sound | undefined>;
+  getSoundByFilename(filename: string): Promise<Sound | undefined>;
+  soundTitleExists(title: string): Promise<boolean>;
   createSound(sound: InsertSound): Promise<Sound>;
   deleteSound(id: number): Promise<boolean>;
 
@@ -199,6 +201,15 @@ export class MemStorage implements IStorage {
 
   async getSound(id: number): Promise<Sound | undefined> {
     return this.sounds.get(id);
+  }
+  
+  async getSoundByFilename(filename: string): Promise<Sound | undefined> {
+    return Array.from(this.sounds.values()).find(sound => sound.filename === filename);
+  }
+  
+  async soundTitleExists(title: string): Promise<boolean> {
+    const filename = title; // The filename is the same as the title in our implementation
+    return !!(await this.getSoundByFilename(filename));
   }
 
   async createSound(insertSound: InsertSound): Promise<Sound> {

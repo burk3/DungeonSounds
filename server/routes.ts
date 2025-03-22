@@ -499,7 +499,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(sounds);
     } catch (err) {
       console.error('Error fetching sounds by category:', err);
-      res.status(500).json({ message: 'Failed to fetch sounds' });
+      res.status(500).json({ message: 'Failed to fetch sounds by category' });
+    }
+  });
+  
+  // Check if a sound title already exists - for validation during upload
+  app.get('/api/sounds/check-title/:title', async (req, res) => {
+    try {
+      const title = req.params.title;
+      const exists = await storage.soundTitleExists(title);
+      res.json({ exists });
+    } catch (err) {
+      console.error('Error checking sound title:', err);
+      res.status(500).json({ message: 'Failed to check sound title' });
     }
   });
   
@@ -591,6 +603,73 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error('Error uploading sound:', err);
       res.status(500).json({ message: 'Failed to upload sound' });
+    }
+  });
+  
+  // Delete a sound (admin only)
+  app.delete('/api/sounds/:id', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid sound ID' });
+      }
+      
+      // Check if currently playing sound is being deleted
+      const isCurrentlyPlaying = id === currentlyPlaying;
+      
+      // Delete the sound
+      const result = await storage.deleteSound(id);
+      
+      if (!result) {
+        return res.status(404).json({ message: 'Sound not found' });
+      }
+      
+      // If we deleted the currently playing sound, reset playback
+      if (isCurrentlyPlaying) {
+        currentlyPlaying = null;
+        
+        const nowPlayingMessage: WSMessage = {
+          type: 'nowPlaying',
+          data: { sound: null }
+        };
+        
+        // Notify all clients that playback has stopped
+        clients.playback.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(nowPlayingMessage));
+          }
+        });
+        
+        clients.remote.forEach(client => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(nowPlayingMessage));
+          }
+        });
+      }
+      
+      // Notify all clients that a sound was deleted
+      const soundDeletedMessage = {
+        type: 'soundDeleted',
+        data: { id }
+      };
+      
+      clients.playback.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(soundDeletedMessage));
+        }
+      });
+      
+      clients.remote.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify(soundDeletedMessage));
+        }
+      });
+      
+      res.status(204).end();
+    } catch (err) {
+      console.error('Error deleting sound:', err);
+      res.status(500).json({ message: 'Failed to delete sound' });
     }
   });
   
