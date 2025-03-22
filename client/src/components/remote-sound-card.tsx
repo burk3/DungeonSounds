@@ -19,14 +19,18 @@ export default function RemoteSoundCard({ sound, isPlaying }: RemoteSoundCardPro
   
   return (
     <div 
-      className={`sound-card bg-white border border-gray-200 rounded-lg shadow-sm cursor-pointer p-3 flex flex-col ${isPlaying ? 'playing border-2 border-secondary' : ''}`}
+      className={`sound-card bg-gray-700 ${isPlaying ? 'border-2 border-amber-600' : 'border border-amber-900/30'} rounded-lg shadow-sm cursor-pointer p-3 flex flex-col`}
+      onClick={handleClick}
     >
       <div className="mb-2">
-        <h3 className="font-medium text-base truncate">{sound.name}</h3>
+        <h3 className="font-medium text-base truncate text-amber-100">{sound.name}</h3>
       </div>
       <button 
-        className={`${isPlaying ? 'bg-error' : 'bg-secondary'} mt-auto text-white rounded-full w-full py-2 flex items-center justify-center`}
-        onClick={handleClick}
+        className={`${isPlaying ? 'bg-amber-800 hover:bg-amber-700' : 'bg-amber-600 hover:bg-amber-500'} mt-auto text-white rounded-lg w-full py-2 flex items-center justify-center transition-colors`}
+        onClick={(e) => {
+          e.stopPropagation(); // Prevent triggering the parent onClick
+          handleClick();
+        }}
         aria-label={isPlaying ? "Stop sound" : "Play sound"}
       >
         <span className="material-icons mr-1" aria-hidden="true">

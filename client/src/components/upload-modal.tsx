@@ -130,23 +130,23 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   if (!isOpen) return null;
   
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
+    <div className="fixed inset-0 bg-stone-900/80 flex items-center justify-center z-50">
+      <div className="bg-stone-800 border border-amber-900/50 rounded-lg shadow-lg max-w-md w-full mx-4 text-amber-100">
         <div className="p-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="font-heading text-xl font-bold">Upload New Sound</h2>
-            <button className="text-gray-500 hover:text-gray-700" onClick={onClose}>
+            <h2 className="font-heading text-xl font-bold text-amber-200">Upload New Sound</h2>
+            <button className="text-amber-400/70 hover:text-amber-300" onClick={onClose}>
               <span className="material-icons" aria-hidden="true">close</span>
             </button>
           </div>
           
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
-              <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="sound-name">
+              <label className="block text-amber-200 text-sm font-medium mb-2" htmlFor="sound-name">
                 Sound Name
               </label>
               <input 
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 bg-stone-700 border border-amber-900/50 rounded-md text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500/50 placeholder-amber-300/30"
                 id="sound-name" 
                 type="text" 
                 placeholder="Enter sound name"
@@ -160,11 +160,11 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
             <input type="hidden" id="sound-category" value="effects" name="category" />
             
             <div className="mb-6">
-              <label className="block text-gray-700 text-sm font-medium mb-2" htmlFor="sound-file">
+              <label className="block text-amber-200 text-sm font-medium mb-2" htmlFor="sound-file">
                 Sound File
               </label>
               <div 
-                className="border-2 border-dashed border-gray-300 rounded-md p-4 text-center cursor-pointer hover:border-primary"
+                className="border-2 border-dashed border-amber-700/50 rounded-md p-4 text-center cursor-pointer hover:border-amber-600/70 transition-colors"
                 onClick={handleFileInputClick}
               >
                 <input 
@@ -176,23 +176,23 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                   onChange={handleFileChange}
                   required
                 />
-                <span className="material-icons text-3xl text-gray-400" aria-hidden="true">upload_file</span>
-                <p className="mt-2 text-sm text-gray-500">
+                <span className="material-icons text-3xl text-amber-500/70" aria-hidden="true">upload_file</span>
+                <p className="mt-2 text-sm text-amber-200/80">
                   {file ? `Selected: ${file.name}` : "Click to select or drag and drop an audio file"}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">Supported formats: MP3, WAV, OGG (Max 10MB)</p>
+                <p className="text-xs text-amber-200/50 mt-1">Supported formats: MP3, WAV, OGG (Max 10MB)</p>
               </div>
               
               {/* Upload Progress */}
               {isUploading && (
                 <div className="mt-3">
-                  <div className="w-full bg-gray-200 rounded-full h-2.5">
+                  <div className="w-full bg-stone-700 rounded-full h-2.5">
                     <div 
-                      className="bg-primary h-2.5 rounded-full" 
+                      className="bg-amber-600 h-2.5 rounded-full" 
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
-                  <p className="text-xs mt-1 text-gray-600">{uploadProgress}% uploaded</p>
+                  <p className="text-xs mt-1 text-amber-200/70">{uploadProgress}% uploaded</p>
                 </div>
               )}
             </div>
@@ -200,7 +200,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
             <div className="flex justify-end space-x-3">
               <button 
                 type="button" 
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-amber-700/50 rounded-md text-amber-200 hover:bg-stone-700 transition-colors"
                 onClick={onClose}
                 disabled={isUploading}
               >
@@ -208,7 +208,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
               </button>
               <button 
                 type="submit" 
-                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50"
+                className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-500 disabled:opacity-50 transition-colors"
                 disabled={isUploading}
               >
                 {isUploading ? "Uploading..." : "Upload Sound"}

@@ -18,9 +18,9 @@ export default function Remote() {
   const filteredSounds = sounds || [];
   
   return (
-    <div className="w-full min-h-screen bg-gray-50">
+    <div className="w-full min-h-screen bg-stone-800 text-amber-100">
       {/* Header */}
-      <header className="bg-gradient-to-r from-purple-800 to-purple-600 text-white shadow-lg">
+      <header className="bg-gradient-to-r from-amber-900 to-amber-700 text-amber-100 shadow-lg border-b border-amber-500/30">
         <div className="container mx-auto px-4 py-5">
           <div className="flex justify-between items-center">
             <div className="flex items-center">
@@ -28,8 +28,8 @@ export default function Remote() {
               <h1 className="font-heading text-2xl font-bold">D&D Soundboard: Remote</h1>
             </div>
             <div className="flex items-center">
-              <div className={`${connected ? 'bg-green-600/40' : 'bg-red-600/40'} rounded-full px-4 py-2 flex items-center transition-colors`}>
-                <span className="material-icons mr-2" aria-hidden="true">
+              <div className={`${connected ? 'bg-green-600/20' : 'bg-red-600/20'} rounded-full px-4 py-2 flex items-center transition-colors`}>
+                <span className="material-icons mr-2 text-amber-200" aria-hidden="true">
                   {connected ? "wifi" : "wifi_off"}
                 </span>
                 <span className="sr-only">{connected ? "Connected" : "Disconnected"}</span>
@@ -42,9 +42,9 @@ export default function Remote() {
       
       {/* Status Bar for showing what's playing */}
       {currentSound && (
-        <div className="bg-gray-900 text-white p-3 shadow-md">
+        <div className="bg-stone-900 text-amber-100 p-3 shadow-md border-b border-amber-800/40">
           <div className="container mx-auto flex items-center">
-            <span className="material-icons text-secondary animate-pulse mr-2" aria-hidden="true">graphic_eq</span>
+            <span className="material-icons text-amber-500 animate-pulse mr-2" aria-hidden="true">graphic_eq</span>
             <div className="overflow-hidden">
               <div className="whitespace-nowrap overflow-ellipsis">
                 <span className="text-sm font-medium">Now Playing: {currentSound.name}</span>
@@ -60,7 +60,7 @@ export default function Remote() {
         {/* Upload Button */}
         <div className="mb-6">
           <button
-            className="bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg shadow-md w-full flex items-center justify-center font-medium"
+            className="bg-amber-600 hover:bg-amber-500 text-white py-3 px-6 rounded-lg shadow-md w-full flex items-center justify-center font-medium transition-colors"
             onClick={() => setIsUploadModalOpen(true)}
           >
             <span className="material-icons mr-2" aria-hidden="true">file_upload</span>
@@ -71,25 +71,25 @@ export default function Remote() {
         {/* Loading State */}
         {isLoading && (
           <div className="py-8 text-center">
-            <div className="material-icons animate-spin text-4xl text-primary mb-2" aria-hidden="true">cached</div>
-            <p className="text-gray-500">Loading sounds...</p>
+            <div className="material-icons animate-spin text-4xl text-amber-500 mb-2" aria-hidden="true">cached</div>
+            <p className="text-amber-200/80">Loading sounds...</p>
           </div>
         )}
         
         {/* Error State */}
         {error && (
           <div className="py-8 text-center">
-            <div className="material-icons text-4xl text-error mb-2" aria-hidden="true">error</div>
-            <p className="text-gray-500">Failed to load sounds</p>
+            <div className="material-icons text-4xl text-red-500 mb-2" aria-hidden="true">error</div>
+            <p className="text-amber-200/80">Failed to load sounds</p>
           </div>
         )}
         
         {/* Empty State */}
         {!isLoading && !error && filteredSounds.length === 0 && (
           <div className="py-8 text-center">
-            <div className="material-icons text-4xl text-gray-400 mb-2" aria-hidden="true">music_off</div>
-            <p className="text-gray-500">No sounds available yet</p>
-            <p className="text-sm text-gray-400 mt-1">Upload your first sound using the button above</p>
+            <div className="material-icons text-4xl text-amber-700/60 mb-2" aria-hidden="true">music_off</div>
+            <p className="text-amber-200/80">No sounds available yet</p>
+            <p className="text-sm text-amber-200/50 mt-1">Upload your first sound using the button above</p>
           </div>
         )}
         
