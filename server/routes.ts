@@ -597,14 +597,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve audio files - public access for playback
   app.get('/api/audio/:filename', async (req, res) => {
     try {
-      const filePath = storage.getFilePath(req.params.filename);
+      const filename = req.params.filename;
+      const objectStorage = storage.getObjectStorage();
       
-      // Check if file exists
-      if (!fs.existsSync(filePath)) {
+      // Get object info to check if it exists
+      const objectInfo = await objectStorage.head(filename);
+      
+      if (!objectInfo.ok) {
         return res.status(404).json({ message: 'Audio file not found' });
       }
       
-      res.sendFile(filePath);
+      // Stream the audio file from Object Storage
+      const { body, headers } = await objectStorage.getWithHeaders(filename);
+      
+      if (!body) {
+        return res.status(404).json({ message: 'Audio file not found' });
+      }
+      
+      // Set appropriate Content-Type based on file extension
+      const ext = path.extname(filename).toLowerCase();
+      let contentType = 'audio/mpeg'; // Default to mp3
+      
+      if (ext === '.wav') contentType = 'audio/wav';
+      else if (ext === '.ogg') contentType = 'audio/ogg';
+      else if (ext === '.m4a') contentType = 'audio/m4a';
+      
+      // Set headers from object storage and content type
+      res.set('Content-Type', contentType);
+      res.set('Content-Length', headers['content-length']);
+      
+      // Pipe the stream to the response
+      body.pipe(res);
     } catch (err) {
       console.error('Error serving audio file:', err);
       res.status(500).json({ message: 'Failed to serve audio file' });

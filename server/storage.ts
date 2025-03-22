@@ -5,12 +5,12 @@ import {
 import { randomUUID } from "crypto";
 import path from "path";
 import fs from "fs";
+import { Client } from "@replit/object-storage";
+import { Readable } from "stream";
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Initialize Replit Object Storage
+const objectStorage = new Client({ bucketId: "sounds" });
+const BUCKET_NAME = "sounds";
 
 // Storage interface
 export interface IStorage {
@@ -34,6 +34,7 @@ export interface IStorage {
   // File operations
   saveFile(buffer: Buffer, originalname: string): Promise<string>;
   getFilePath(filename: string): string;
+  getObjectStorage(): any; // Exposes the Replit Object Storage client
 }
 
 export class MemStorage implements IStorage {
@@ -153,15 +154,34 @@ export class MemStorage implements IStorage {
   // File operations
   async saveFile(buffer: Buffer, originalname: string): Promise<string> {
     const ext = path.extname(originalname);
-    const filename = `${randomUUID()}${ext}`;
-    const filePath = path.join(uploadsDir, filename);
     
-    await fs.promises.writeFile(filePath, buffer);
+    // Use provided name (from form title field) as the filename instead of a UUID
+    // The file is stored as "Title.mp3" in the bucket
+    const filename = originalname;
+    
+    // Create a readable stream from the buffer
+    const readableStream = new Readable();
+    readableStream.push(buffer);
+    readableStream.push(null);
+    
+    // Upload the file to Object Storage
+    const result = await objectStorage.uploadFromStream(filename, readableStream);
+    
+    if (!result.ok) {
+      throw new Error(`Failed to upload file: ${result.error}`);
+    }
+    
     return filename;
   }
 
   getFilePath(filename: string): string {
-    return path.join(uploadsDir, filename);
+    // This now returns a URL path for the API endpoint that will stream the file
+    return `/api/audio/${encodeURIComponent(filename)}`;
+  }
+  
+  getObjectStorage() {
+    // Return the Replit Object Storage client
+    return objectStorage;
   }
 }
 
