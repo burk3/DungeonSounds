@@ -700,22 +700,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const fullTitle = hasExtension ? name : name + fileExt;
       
       try {
-        // Validate the input
+        // First save the file to get the filename
+        const filename = await storage.saveFile(req.file.buffer, fullTitle, req.user?.email);
+        
+        // Then validate with the actual filename included
         const parsedData = insertSoundSchema.parse({
           name,
           category,
           uploader: req.user?.email || null, // Use the actual user email
-          filename: ''  // Will be set after file is saved
+          filename  // Now we have the real filename
         });
-        
-        // Save the file using the title as the filename
-        const filename = await storage.saveFile(req.file.buffer, fullTitle, req.user?.email);
         
         // Create the sound entry
-        const sound = await storage.createSound({
-          ...parsedData,
-          filename
-        });
+        const sound = await storage.createSound(parsedData);
         
         // Notify all clients about the new sound
         const soundAddedMessage = {
