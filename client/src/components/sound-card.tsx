@@ -53,12 +53,6 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
             Uploaded by: {sound.uploader || "Anonymous"}
           </p>
         </div>
-        {!isAuthenticated && !isPlaying && (
-          <div className="bg-amber-900/40 text-amber-200/80 text-xs px-2 py-1 rounded-md flex items-center">
-            <span className="material-icons text-sm mr-1" aria-hidden="true">lock</span>
-            <span>Login required</span>
-          </div>
-        )}
       </div>
       <div className="mt-4 flex justify-between items-center">
         <div className="flex items-center text-sm text-amber-200/60">
