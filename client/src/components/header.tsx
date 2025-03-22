@@ -1,6 +1,6 @@
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
-import { LogOut, User, Shield } from "lucide-react";
+import { LogOut, User, Shield, Users } from "lucide-react";
 import { Switch, Link } from "wouter";
 import { useLocation } from "wouter";
 import {
@@ -35,15 +35,23 @@ export default function Header() {
           
           <nav className="hidden space-x-2 sm:flex">
             <Link href="/playback">
-              <div className={`rounded-md px-3 py-1 cursor-pointer ${isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+              <div className={`rounded-md px-3 py-1 cursor-pointer ${location === '/playback' ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
                 Playback
               </div>
             </Link>
             <Link href="/remote">
-              <div className={`rounded-md px-3 py-1 cursor-pointer ${!isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+              <div className={`rounded-md px-3 py-1 cursor-pointer ${location === '/remote' ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
                 Remote
               </div>
             </Link>
+            {isAdmin && (
+              <Link href="/admin">
+                <div className={`rounded-md px-3 py-1 cursor-pointer ${location === '/admin' ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+                  <Users className="inline-block h-4 w-4 mr-1" />
+                  Admin
+                </div>
+              </Link>
+            )}
           </nav>
         </div>
 
@@ -76,6 +84,14 @@ export default function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-amber-900/50" />
+              {isAdmin && (
+                <Link href="/admin">
+                  <DropdownMenuItem className="text-amber-300 focus:bg-amber-900 focus:text-amber-100">
+                    <Users className="mr-2 h-4 w-4" />
+                    <span>User Management</span>
+                  </DropdownMenuItem>
+                </Link>
+              )}
               <DropdownMenuItem
                 onClick={() => logout()}
                 className="text-amber-400 focus:bg-amber-900 focus:text-amber-100"
@@ -92,15 +108,23 @@ export default function Header() {
       <div className="mt-2 flex sm:hidden">
         <nav className="flex w-full justify-center space-x-2">
           <Link href="/playback">
-            <div className={`flex-1 rounded-md px-3 py-1 text-center cursor-pointer ${isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+            <div className={`flex-1 rounded-md px-3 py-1 text-center cursor-pointer ${location === '/playback' ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
               Playback
             </div>
           </Link>
           <Link href="/remote">
-            <div className={`flex-1 rounded-md px-3 py-1 text-center cursor-pointer ${!isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+            <div className={`flex-1 rounded-md px-3 py-1 text-center cursor-pointer ${location === '/remote' ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
               Remote
             </div>
           </Link>
+          {isAdmin && (
+            <Link href="/admin">
+              <div className={`flex-1 rounded-md px-3 py-1 text-center cursor-pointer ${location === '/admin' ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+                <Users className="inline-block h-4 w-4 mr-1" />
+                Admin
+              </div>
+            </Link>
+          )}
         </nav>
       </div>
     </header>
