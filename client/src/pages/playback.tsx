@@ -25,32 +25,54 @@ export default function Playback() {
   
   // Play sound when currentSound changes
   useEffect(() => {
-    if (currentSound) {
-      play(`/api/audio/${currentSound.filename}`, volume / 100);
-      
-      // Create an audio element to monitor when the sound finishes
-      const audio = new Audio(`/api/audio/${currentSound.filename}`);
-      audioElementRef.current = audio;
-      
-      // Set up event listener for when audio finishes
-      audio.addEventListener('ended', () => {
-        // When sound ends naturally, send a stop message
-        stopSound();
-      });
-      
-      // Start playing to track the duration
-      audio.volume = 0; // Mute this tracking element since we're already playing the sound
-      audio.play().catch(err => console.error("Error tracking audio duration:", err));
-    } else {
-      stop();
-      
-      // Clean up tracking audio element
+    let endedHandler: (() => void) | null = null;
+    
+    const setupAudio = () => {
+      if (currentSound) {
+        // Play the sound through our main player
+        play(`/api/audio/${currentSound.filename}`, volume / 100);
+        
+        // Create a separate audio element to monitor when the sound finishes
+        const audio = new Audio(`/api/audio/${currentSound.filename}`);
+        audioElementRef.current = audio;
+        
+        // Set up event listener for when audio finishes
+        endedHandler = () => {
+          console.log("Sound finished playing naturally");
+          stopSound(); // Send stop message to all clients
+        };
+        
+        audio.addEventListener('ended', endedHandler);
+        
+        // Start playing to track the duration (muted to avoid double playback)
+        audio.volume = 0;
+        audio.play().catch(err => console.error("Error tracking audio duration:", err));
+      } else {
+        stop();
+        cleanupAudio();
+      }
+    };
+    
+    const cleanupAudio = () => {
       if (audioElementRef.current) {
+        // Remove event listeners
+        if (endedHandler) {
+          audioElementRef.current.removeEventListener('ended', endedHandler);
+        }
+        
+        // Stop and clean up the audio element
         audioElementRef.current.pause();
         audioElementRef.current.src = '';
         audioElementRef.current = null;
       }
-    }
+    };
+    
+    setupAudio();
+    
+    // Cleanup function for when component unmounts or when dependencies change
+    return () => {
+      cleanupAudio();
+    };
   }, [currentSound, volume, play, stop, stopSound]);
   
   return (
