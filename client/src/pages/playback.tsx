@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Sound } from "@shared/schema";
 import { useWebSocket } from "@/lib/websocket";
 import { useSound } from "@/lib/useSound";
@@ -7,10 +7,10 @@ import NowPlaying from "@/components/now-playing";
 import SoundCard from "@/components/sound-card";
 
 export default function Playback() {
-  const { connected, currentSound, volume } = useWebSocket();
+  const { connected, currentSound, volume, stopSound, sendMessage } = useWebSocket();
   
   // Initialize audio playback
-  const { play, stop } = useSound();
+  const { play, stop, isPlaying } = useSound();
   
   // Fetch all sounds
   const { data: sounds, isLoading, error } = useQuery<Sound[]>({
@@ -20,14 +20,38 @@ export default function Playback() {
   // Use all sounds without filtering by category
   const filteredSounds = sounds || [];
   
+  // Reference for audio element to track when it ends
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  
   // Play sound when currentSound changes
   useEffect(() => {
     if (currentSound) {
       play(`/api/audio/${currentSound.filename}`, volume / 100);
+      
+      // Create an audio element to monitor when the sound finishes
+      const audio = new Audio(`/api/audio/${currentSound.filename}`);
+      audioElementRef.current = audio;
+      
+      // Set up event listener for when audio finishes
+      audio.addEventListener('ended', () => {
+        // When sound ends naturally, send a stop message
+        stopSound();
+      });
+      
+      // Start playing to track the duration
+      audio.volume = 0; // Mute this tracking element since we're already playing the sound
+      audio.play().catch(err => console.error("Error tracking audio duration:", err));
     } else {
       stop();
+      
+      // Clean up tracking audio element
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current.src = '';
+        audioElementRef.current = null;
+      }
     }
-  }, [currentSound, volume, play, stop]);
+  }, [currentSound, volume, play, stop, stopSound]);
   
   return (
     <div className="w-full min-h-screen bg-gray-50">

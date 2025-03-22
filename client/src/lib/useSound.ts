@@ -36,17 +36,6 @@ export function useSound(): UseSoundReturn {
     // Set volume (0-1)
     audio.volume = Math.min(Math.max(volume, 0), 1);
     
-    // Handle end of playback
-    audio.addEventListener("ended", () => {
-      setIsPlaying(false);
-    });
-    
-    // Handle errors
-    audio.addEventListener("error", (e) => {
-      console.error("Audio playback error:", e);
-      setIsPlaying(false);
-    });
-    
     // Play
     audio.play().then(() => {
       setIsPlaying(true);
