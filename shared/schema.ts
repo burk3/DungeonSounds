@@ -62,6 +62,7 @@ export type WSMessageType =
   | "stop" 
   | "volume" 
   | "soundAdded" 
+  | "soundDeleted" 
   | "nowPlaying" 
   | "error";
 
@@ -84,6 +85,10 @@ export type NowPlayingMessage = {
 
 export type SoundAddedMessage = {
   sound: Sound;
+};
+
+export type SoundDeletedMessage = {
+  id: number;
 };
 
 export type ConnectMessage = {

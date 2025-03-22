@@ -13,6 +13,7 @@ export const useWebSocket: () => {
   playSound: (soundId: number) => void;
   stopSound: () => void;
   setVolume: (volume: number) => void;
+  // No need to add anything here since we're not changing the API
 } = useWebSocketOriginal;
 
 // Add default export for compatibility

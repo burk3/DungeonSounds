@@ -88,6 +88,13 @@ function WebSocketProviderComponent({ children }) {
               });
               // We'll let the query client handle refreshing the list
               break;
+            case "soundDeleted":
+              toast({
+                title: "Sound Deleted",
+                description: "A sound has been removed from the soundboard",
+              });
+              // We'll let the query client handle refreshing the list
+              break;
             case "volume":
               setVolumeState(message.data.volume);
               break;
