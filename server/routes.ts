@@ -524,12 +524,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Check if a sound title already exists - for validation during upload
-  app.get('/api/sounds/check-title-exists', verifyToken, async (req: AuthRequest, res) => {
+  app.get('/api/sounds/check-title/:title', async (req, res) => {
     try {
-      const title = req.query.title as string;
-      if (!title) {
-        return res.status(400).json({ message: 'Title parameter is required' });
-      }
+      const title = req.params.title;
       const exists = await storage.soundTitleExists(title);
       res.json({ exists });
     } catch (err) {
