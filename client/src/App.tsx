@@ -6,9 +6,39 @@ import NotFound from "@/pages/not-found";
 import Playback from "@/pages/playback";
 import Remote from "@/pages/remote";
 import { WebSocketProvider } from "./lib/websocket";
-import { AuthProvider } from "./lib/auth";
 import { useEffect } from "react";
-import Navbar from "@/components/navbar";
+import { AuthProvider, useAuth } from "./lib/auth-context";
+import Login from "./components/login";
+import RestrictedAccess from "./components/restricted-access";
+import { Loader2 } from "lucide-react";
+
+// Protected route component
+function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType, [key: string]: any }) {
+  const { isAuthenticated, isLoading, isAllowed } = useAuth();
+
+  // Show loading while checking auth
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#2A2523] text-amber-200">
+        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        <span className="text-xl">Loading...</span>
+      </div>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!isAuthenticated) {
+    return <Login />;
+  }
+
+  // Show restricted access if authenticated but not allowed
+  if (!isAllowed) {
+    return <RestrictedAccess />;
+  }
+
+  // Render the component if authenticated and allowed
+  return <Component {...rest} />;
+}
 
 function Router() {
   const [location, setLocation] = useLocation();
@@ -21,16 +51,17 @@ function Router() {
   }, [location, setLocation]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-gradient-to-br from-neutral-900 to-stone-900">
-      <Navbar />
-      <main className="flex-1 p-4">
-        <Switch>
-          <Route path="/playback" component={Playback} />
-          <Route path="/remote" component={Remote} />
-          <Route component={NotFound} />
-        </Switch>
-      </main>
-    </div>
+    <Switch>
+      <Route path="/playback">
+        <ProtectedRoute component={Playback} />
+      </Route>
+      <Route path="/remote">
+        <ProtectedRoute component={Remote} />
+      </Route>
+      <Route>
+        <ProtectedRoute component={NotFound} />
+      </Route>
+    </Switch>
   );
 }
 

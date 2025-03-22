@@ -2,6 +2,7 @@ import { useState, ChangeEvent, FormEvent, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth-context";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const uploadMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -24,26 +26,37 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       return new Promise((resolve, reject) => {
         xhr.open("POST", "/api/sounds");
         
-        xhr.upload.addEventListener("progress", (event) => {
-          if (event.lengthComputable) {
-            const progress = Math.round((event.loaded / event.total) * 100);
-            setUploadProgress(progress);
-          }
-        });
-        
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(JSON.parse(xhr.responseText));
-          } else {
-            reject(new Error(xhr.responseText || `Upload failed with status ${xhr.status}`));
-          }
-        };
-        
-        xhr.onerror = () => {
-          reject(new Error("Network error occurred during upload"));
-        };
-        
-        xhr.send(formData);
+        // Add authorization header with Firebase token
+        if (user) {
+          user.getIdToken().then(token => {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+            
+            xhr.upload.addEventListener("progress", (event) => {
+              if (event.lengthComputable) {
+                const progress = Math.round((event.loaded / event.total) * 100);
+                setUploadProgress(progress);
+              }
+            });
+            
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve(JSON.parse(xhr.responseText));
+              } else {
+                reject(new Error(xhr.responseText || `Upload failed with status ${xhr.status}`));
+              }
+            };
+            
+            xhr.onerror = () => {
+              reject(new Error("Network error occurred during upload"));
+            };
+            
+            xhr.send(formData);
+          }).catch(error => {
+            reject(new Error("Failed to get authentication token"));
+          });
+        } else {
+          reject(new Error("You must be logged in to upload sounds"));
+        }
       });
     },
     onSuccess: () => {

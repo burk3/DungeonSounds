@@ -15,5 +15,5 @@ export const useWebSocket: () => {
   setVolume: (volume: number) => void;
 } = useWebSocketOriginal;
 
-// Add default export to fix TypeScript error
+// Add default export for compatibility
 export default WebSocketProvider;

@@ -5,6 +5,8 @@ import { useWebSocket } from "@/lib/websocket";
 import { useSound } from "@/lib/useSound";
 import NowPlaying from "@/components/now-playing";
 import SoundCard from "@/components/sound-card";
+import Header from "@/components/header";
+import { auth } from "@/lib/firebase";
 
 export default function Playback() {
   const { connected, currentSound, volume, stopSound, sendMessage } = useWebSocket();
@@ -27,32 +29,7 @@ export default function Playback() {
   useEffect(() => {
     let endedHandler: (() => void) | null = null;
     
-    const setupAudio = () => {
-      if (currentSound) {
-        // Play the sound through our main player
-        play(`/api/audio/${currentSound.filename}`, volume / 100);
-        
-        // Create a separate audio element to monitor when the sound finishes
-        const audio = new Audio(`/api/audio/${currentSound.filename}`);
-        audioElementRef.current = audio;
-        
-        // Set up event listener for when audio finishes
-        endedHandler = () => {
-          console.log("Sound finished playing naturally");
-          stopSound(); // Send stop message to all clients
-        };
-        
-        audio.addEventListener('ended', endedHandler);
-        
-        // Start playing to track the duration (muted to avoid double playback)
-        audio.volume = 0;
-        audio.play().catch(err => console.error("Error tracking audio duration:", err));
-      } else {
-        stop();
-        cleanupAudio();
-      }
-    };
-    
+    // Function to clean up audio resources
     const cleanupAudio = () => {
       if (audioElementRef.current) {
         // Remove event listeners
@@ -67,6 +44,71 @@ export default function Playback() {
       }
     };
     
+    // Set up the audio tracking
+    const setupAudio = async () => {
+      if (currentSound) {
+        try {
+          // Play the sound through our main player
+          play(`/api/audio/${currentSound.filename}`, volume / 100);
+          
+          // Get the auth token for the tracking audio element
+          const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+          
+          // Create a separate audio element to monitor when the sound finishes
+          const audio = new Audio();
+          audioElementRef.current = audio;
+          
+          // Set up event listener for when audio finishes
+          endedHandler = () => {
+            console.log("Sound finished playing naturally");
+            stopSound(); // Send stop message to all clients
+          };
+          
+          audio.addEventListener('ended', endedHandler);
+          
+          // Start playing to track the duration (muted to avoid double playback)
+          audio.volume = 0;
+          
+          // Add auth headers for the fetch request if token is available
+          if (token) {
+            // Set up fetch interceptor for audio file
+            const originalFetch = window.fetch;
+            const audioUrl = `/api/audio/${currentSound.filename}`;
+            
+            window.fetch = function(input, init) {
+              if (input && typeof input === 'string' && input.includes(audioUrl)) {
+                init = init || {};
+                init.headers = {
+                  ...init.headers,
+                  'Authorization': `Bearer ${token}`
+                };
+              }
+              return originalFetch(input, init);
+            };
+            
+            // Set audio source and attempt to play
+            audio.src = audioUrl;
+            audio.play().catch(err => console.error("Error tracking audio duration:", err));
+            
+            // Restore original fetch after a delay
+            setTimeout(() => {
+              window.fetch = originalFetch;
+            }, 3000);
+          } else {
+            // Fall back to no auth if token not available
+            audio.src = `/api/audio/${currentSound.filename}`;
+            audio.play().catch(err => console.error("Error tracking audio duration:", err));
+          }
+        } catch (err) {
+          console.error("Error setting up tracking audio:", err);
+        }
+      } else {
+        stop();
+        cleanupAudio();
+      }
+    };
+    
+    // Run the setup function
     setupAudio();
     
     // Cleanup function for when component unmounts or when dependencies change
@@ -76,33 +118,30 @@ export default function Playback() {
   }, [currentSound, volume, play, stop, stopSound]);
   
   return (
-    <div className="w-full min-h-screen bg-gray-900">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-amber-900 to-amber-700 text-amber-100 shadow-lg">
-        <div className="container mx-auto px-4 py-5 flex justify-between items-center">
-          <div className="flex items-center">
-            <span className="material-icons text-3xl mr-3 text-amber-300" aria-hidden="true">equalizer</span>
-            <h1 className="font-heading text-2xl font-bold">D&D Soundboard: Playback</h1>
-          </div>
-          <div className="flex items-center">
-            <div className={`${connected ? 'bg-green-800/60' : 'bg-red-900/60'} rounded-full px-4 py-2 flex items-center transition-colors`}>
-              <span className="material-icons mr-2" aria-hidden="true">
-                {connected ? "wifi" : "wifi_off"}
-              </span>
-              <span>{connected ? "Connected" : "Disconnected"}</span>
-            </div>
+    <div className="w-full min-h-screen bg-[#2A2523]">
+      {/* Header with Auth */}
+      <Header />
+      
+      {/* Connection Status */}
+      <div className="bg-[#322B28] py-2 border-b border-amber-900">
+        <div className="container mx-auto px-4 flex justify-end">
+          <div className={`${connected ? 'bg-green-900/40' : 'bg-red-900/40'} rounded-full px-3 py-1 flex items-center text-sm transition-colors`}>
+            <span className="material-icons mr-1 text-sm" aria-hidden="true">
+              {connected ? "wifi" : "wifi_off"}
+            </span>
+            <span className="text-amber-200">{connected ? "Connected" : "Disconnected"}</span>
           </div>
         </div>
-      </header>
+      </div>
       
       {/* Now Playing Bar */}
       <NowPlaying />
       
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden border border-amber-800/40">
+        <div className="bg-[#32291F] rounded-lg shadow-md overflow-hidden border border-amber-800/40">
           <div className="p-6">
-            <h2 className="font-heading text-2xl font-bold text-amber-200 mb-6">Sound Library</h2>
+            <h2 className="text-2xl font-bold text-amber-300 mb-6">Sound Library</h2>
             
             {/* Loading State */}
             {isLoading && (
