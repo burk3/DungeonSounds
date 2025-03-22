@@ -98,7 +98,24 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
     fileInputRef.current?.click();
   };
   
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  // Helper function to get file extension
+  const getFileExtension = (filename: string): string => {
+    return filename.slice((filename.lastIndexOf(".") - 1 >>> 0) + 1);
+  };
+  
+  // Check if sound title already exists
+  const checkTitleExists = async (title: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/sounds/check-title-exists?title=${encodeURIComponent(title)}`);
+      const data = await response.json();
+      return data.exists;
+    } catch (error) {
+      console.error("Error checking title:", error);
+      return false; // Proceed with upload if check fails
+    }
+  };
+  
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (!file) {
@@ -131,12 +148,25 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       return;
     }
     
+    // Check if sound title already exists
+    setIsUploading(true);
+    
+    const titleExists = await checkTitleExists(name);
+    if (titleExists) {
+      setIsUploading(false);
+      toast({
+        title: "Duplicate Sound Name",
+        description: "A sound with this name already exists. Please choose a different name.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     const formData = new FormData();
     formData.append("name", name);
     formData.append("category", "effects"); // Always use effects category for simplicity
     formData.append("file", file);
     
-    setIsUploading(true);
     uploadMutation.mutate(formData);
   };
   

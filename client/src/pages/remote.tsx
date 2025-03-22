@@ -5,10 +5,13 @@ import { useWebSocket } from "@/lib/websocket";
 import RemoteSoundCard from "@/components/remote-sound-card";
 import UploadModal from "@/components/upload-modal";
 import Header from "@/components/header";
+import { useAuth } from "@/lib/auth-context";
 
 export default function Remote() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isDeleteMode, setIsDeleteMode] = useState(false);
   const { connected, currentSound } = useWebSocket();
+  const { isAdmin } = useAuth();
   
   // Fetch all sounds
   const { data: sounds, isLoading, error } = useQuery<Sound[]>({
@@ -23,9 +26,25 @@ export default function Remote() {
       {/* Header with Auth */}
       <Header />
       
-      {/* Connection Status */}
+      {/* Connection Status & Admin Controls */}
       <div className="bg-[#322B28] py-2 border-b border-amber-900">
-        <div className="container mx-auto px-4 flex justify-end">
+        <div className="container mx-auto px-4 flex justify-between items-center">
+          {/* Admin Delete Mode Toggle (only shown to admins) */}
+          {isAdmin && (
+            <div>
+              <button
+                className={`flex items-center text-sm px-3 py-1 rounded-full transition-colors ${isDeleteMode ? 'bg-red-700/60 text-white' : 'bg-gray-700/40 text-amber-200'}`}
+                onClick={() => setIsDeleteMode(!isDeleteMode)}
+              >
+                <span className="material-icons mr-1 text-sm" aria-hidden="true">
+                  {isDeleteMode ? 'close' : 'delete'}
+                </span>
+                {isDeleteMode ? 'Exit Delete Mode' : 'Delete Mode'}
+              </button>
+            </div>
+          )}
+          
+          {/* Connection Status */}
           <div className={`${connected ? 'bg-green-900/40' : 'bg-red-900/40'} rounded-full px-3 py-1 flex items-center text-sm transition-colors`}>
             <span className="material-icons mr-1 text-sm" aria-hidden="true">
               {connected ? "wifi" : "wifi_off"}
@@ -53,19 +72,33 @@ export default function Remote() {
         </div>
       </div>
       
+      {/* Delete Mode Banner (shown when delete mode is active) */}
+      {isDeleteMode && (
+        <div className="bg-red-900/60 text-white p-2 text-center text-sm">
+          <div className="container mx-auto">
+            <p className="flex items-center justify-center">
+              <span className="material-icons mr-1" aria-hidden="true">warning</span>
+              Delete Mode Active - Click on sounds to remove them from the soundboard
+            </p>
+          </div>
+        </div>
+      )}
+      
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
         
-        {/* Upload Button */}
-        <div className="mb-6">
-          <button
-            className="bg-amber-600 hover:bg-amber-500 text-white py-3 px-6 rounded-lg shadow-md w-full flex items-center justify-center font-medium transition-colors"
-            onClick={() => setIsUploadModalOpen(true)}
-          >
-            <span className="material-icons mr-2" aria-hidden="true">file_upload</span>
-            Upload New Sound
-          </button>
-        </div>
+        {/* Upload Button (hidden in delete mode) */}
+        {!isDeleteMode && (
+          <div className="mb-6">
+            <button
+              className="bg-amber-600 hover:bg-amber-500 text-white py-3 px-6 rounded-lg shadow-md w-full flex items-center justify-center font-medium transition-colors"
+              onClick={() => setIsUploadModalOpen(true)}
+            >
+              <span className="material-icons mr-2" aria-hidden="true">file_upload</span>
+              Upload New Sound
+            </button>
+          </div>
+        )}
         
         {/* Loading State */}
         {isLoading && (
@@ -100,6 +133,7 @@ export default function Remote() {
                 key={sound.id} 
                 sound={sound}
                 isPlaying={currentSound?.id === sound.id}
+                isDeleteMode={isDeleteMode}
               />
             ))}
           </div>
