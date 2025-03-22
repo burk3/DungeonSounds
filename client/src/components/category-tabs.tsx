@@ -1,4 +1,4 @@
-import { SoundCategory } from "@shared/schema";
+import { SoundCategory } from "@shared/types";
 
 interface CategoryTabsProps {
   categories: readonly SoundCategory[];

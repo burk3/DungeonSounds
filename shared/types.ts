@@ -13,6 +13,12 @@ export interface InsertAllowedUser {
   isAdmin?: boolean;
 }
 
+// Zod validation schemas
+export const insertAllowedUserSchema = z.object({
+  email: z.string().email(),
+  isAdmin: z.boolean().optional().default(false)
+});
+
 // User roles
 export enum UserRole {
   USER = 'user',
@@ -39,6 +45,13 @@ export interface InsertSound {
   category: string;
   uploader: string | null;
 }
+
+export const insertSoundSchema = z.object({
+  name: z.string().min(1),
+  filename: z.string().min(1),
+  category: z.enum(SOUND_CATEGORIES),
+  uploader: z.string().nullable()
+});
 
 // Message types for WebSocket communication
 export type WSMessageType = 

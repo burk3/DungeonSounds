@@ -13,7 +13,9 @@ import {
   InsertSound,
   InsertAllowedUser,
   UserRole,
-  AllowedUser
+  AllowedUser,
+  insertSoundSchema,
+  insertAllowedUserSchema
 } from "@shared/types";
 import multer from "multer";
 import path from "path";
