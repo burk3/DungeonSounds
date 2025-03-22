@@ -1,12 +1,10 @@
 import {
-  sounds,
   type Sound,
   type InsertSound,
   type SoundCategory,
-  allowedUsers,
   type AllowedUser,
   type InsertAllowedUser,
-} from "@shared/schema";
+} from "@shared/types";
 import path from "path";
 import { Client } from "@replit/object-storage";
 import { Readable } from "stream";

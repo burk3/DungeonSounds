@@ -10,11 +10,11 @@ import {
   NowPlayingMessage,
   SoundCategory,
   SOUND_CATEGORIES,
-  insertSoundSchema,
-  insertAllowedUserSchema,
+  InsertSound,
+  InsertAllowedUser,
   UserRole,
   AllowedUser
-} from "@shared/schema";
+} from "@shared/types";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
