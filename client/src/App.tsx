@@ -53,13 +53,13 @@ function Router() {
   return (
     <Switch>
       <Route path="/playback">
-        <ProtectedRoute component={Playback} />
+        <Playback />
       </Route>
       <Route path="/remote">
         <ProtectedRoute component={Remote} />
       </Route>
       <Route>
-        <ProtectedRoute component={NotFound} />
+        <NotFound />
       </Route>
     </Switch>
   );
