@@ -1,6 +1,7 @@
 import { Sound } from "@shared/types";
 import { formatDistanceToNow } from "date-fns";
 import { useWebSocket } from "@/lib/websocket";
+import { useAuth } from "@/lib/auth-context";
 
 interface SoundCardProps {
   sound: Sound;
@@ -9,6 +10,7 @@ interface SoundCardProps {
 
 export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
   const { playSound, stopSound } = useWebSocket();
+  const { isAuthenticated } = useAuth();
   
   // Format duration
   const formatDuration = (seconds: number) => {
@@ -28,16 +30,20 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
   };
   
   const handleClick = () => {
+    // Only allow stopping a sound if it's already playing
     if (isPlaying) {
       stopSound();
-    } else {
+    } else if (isAuthenticated) {
+      // Only allow starting sound playback if authenticated
       playSound(sound.id);
+    } else {
+      console.log("Authentication required to play sounds on the playback page");
     }
   };
   
   return (
     <div 
-      className={`sound-card bg-gray-700 rounded-lg overflow-hidden shadow hover:shadow-md cursor-pointer p-4 transition-all duration-200 ${isPlaying ? 'playing border-2 border-amber-600' : 'border border-amber-900/30'}`}
+      className={`sound-card bg-gray-700 rounded-lg overflow-hidden shadow hover:shadow-md ${isAuthenticated ? 'cursor-pointer' : 'cursor-default'} p-4 transition-all duration-200 ${isPlaying ? 'playing border-2 border-amber-600' : 'border border-amber-900/30'}`}
       onClick={handleClick}
     >
       <div className="flex justify-between items-start">
@@ -47,7 +53,12 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
             Uploaded by: {sound.uploader || "Anonymous"}
           </p>
         </div>
-        {/* Category badges removed as requested */}
+        {!isAuthenticated && !isPlaying && (
+          <div className="bg-amber-900/40 text-amber-200/80 text-xs px-2 py-1 rounded-md flex items-center">
+            <span className="material-icons text-sm mr-1" aria-hidden="true">lock</span>
+            <span>Login required</span>
+          </div>
+        )}
       </div>
       <div className="mt-4 flex justify-between items-center">
         <div className="flex items-center text-sm text-amber-200/60">
@@ -55,15 +66,16 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
           <span>Added {getTimeAgo(sound.uploadedAt)}</span>
         </div>
         <button 
-          className={`${isPlaying ? 'bg-amber-800' : 'bg-amber-600'} text-white rounded-full w-10 h-10 flex items-center justify-center shadow-sm`}
+          className={`${isPlaying ? 'bg-amber-800' : isAuthenticated ? 'bg-amber-600' : 'bg-amber-700/50'} text-white rounded-full w-10 h-10 flex items-center justify-center shadow-sm ${!isAuthenticated && !isPlaying ? 'opacity-60 cursor-not-allowed' : ''}`}
           onClick={(e) => {
             e.stopPropagation(); // Prevent triggering the parent onClick
             handleClick();
           }}
           aria-label={isPlaying ? "Stop sound" : "Play sound"}
+          disabled={!isAuthenticated && !isPlaying}
         >
           <span className="material-icons" aria-hidden="true">
-            {isPlaying ? 'stop' : 'play_arrow'}
+            {isPlaying ? 'stop' : isAuthenticated ? 'play_arrow' : 'lock'}
           </span>
         </button>
       </div>

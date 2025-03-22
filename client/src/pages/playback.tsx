@@ -7,9 +7,11 @@ import NowPlaying from "@/components/now-playing";
 import SoundCard from "@/components/sound-card";
 import Header from "@/components/header";
 import { auth } from "@/lib/firebase";
+import { useAuth } from "@/lib/auth-context";
 
 export default function Playback() {
   const { connected, currentSound, volume, stopSound, sendMessage } = useWebSocket();
+  const { isAuthenticated } = useAuth();
   
   // Initialize audio playback
   const { play, stop, isPlaying } = useSound();
@@ -112,7 +114,16 @@ export default function Playback() {
       <main className="container mx-auto px-4 py-8">
         <div className="bg-[#32291F] rounded-lg shadow-md overflow-hidden border border-amber-800/40">
           <div className="p-6">
-            <h2 className="text-2xl font-bold text-amber-300 mb-6">Sound Library</h2>
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-amber-300">Sound Library</h2>
+              
+              {!isAuthenticated && (
+                <div className="bg-amber-900/40 text-amber-200 px-4 py-2 rounded-md flex items-center">
+                  <span className="material-icons mr-2" aria-hidden="true">lock</span>
+                  <span>Sign in to play sounds</span>
+                </div>
+              )}
+            </div>
             
             {/* Loading State */}
             {isLoading && (
