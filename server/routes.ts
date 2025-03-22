@@ -271,11 +271,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           case 'play': {
+            console.log('Received play message:', parsedMessage);
+            
+            if (!parsedMessage.data || typeof parsedMessage.data !== 'object') {
+              console.error('Invalid play message format - missing data object');
+              ws.send(JSON.stringify({
+                type: 'error',
+                data: { message: 'Invalid play message format' }
+              }));
+              return;
+            }
+            
             const { soundId } = parsedMessage.data as PlaySoundMessage;
+            console.log('Attempting to play sound ID:', soundId);
+            
+            if (soundId === undefined || soundId === null) {
+              console.error('Invalid play message - missing soundId');
+              ws.send(JSON.stringify({
+                type: 'error',
+                data: { message: 'Missing sound ID' }
+              }));
+              return;
+            }
+            
             currentlyPlaying = soundId;
             
             const sound = await storage.getSound(soundId);
+            console.log('Found sound for ID:', sound);
+            
             if (!sound) {
+              console.error(`Sound not found for ID: ${soundId}`);
               ws.send(JSON.stringify({
                 type: 'error',
                 data: { message: 'Sound not found' }
@@ -288,19 +313,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
               data: { sound }
             };
             
+            console.log('Sending nowPlaying to clients:', JSON.stringify(nowPlayingMessage));
+            
             // Send to all playback clients
+            let playbackSent = 0;
             clients.playback.forEach(client => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify(nowPlayingMessage));
+                playbackSent++;
               }
             });
+            console.log(`Sent to ${playbackSent} playback clients`);
             
             // Send to all remote clients
+            let remoteSent = 0;
             clients.remote.forEach(client => {
               if (client.readyState === WebSocket.OPEN) {
                 client.send(JSON.stringify(nowPlayingMessage));
+                remoteSent++;
               }
             });
+            console.log(`Sent to ${remoteSent} remote clients`);
             break;
           }
           

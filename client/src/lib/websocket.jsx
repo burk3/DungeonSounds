@@ -36,21 +36,39 @@ function WebSocketProviderComponent({ children }) {
       socketRef.current = socket;
 
       socket.onopen = () => {
+        console.log("WebSocket connection established");
         setConnected(true);
+        
         // Send connect message with client type
         const clientType = window.location.pathname.includes("playback") 
           ? "playback" 
           : "remote";
         
-        socket.send(JSON.stringify({
-          type: "connect",
-          data: { clientType }
-        }));
-
-        toast({
-          title: "Connected to soundboard",
-          description: `Connected as ${clientType} client`,
-        });
+        console.log(`Sending connect message as ${clientType} client`);
+        
+        try {
+          const connectMessage = {
+            type: "connect",
+            data: { clientType }
+          };
+          
+          const messageStr = JSON.stringify(connectMessage);
+          console.log("Connection message to send:", messageStr);
+          
+          socket.send(messageStr);
+          
+          toast({
+            title: "Connected to soundboard",
+            description: `Connected as ${clientType} client`,
+          });
+        } catch (error) {
+          console.error("Error in onopen when sending connect message:", error);
+          toast({
+            title: "Connection Error",
+            description: "Connected but failed to initialize client type",
+            variant: "destructive",
+          });
+        }
       };
 
       socket.onclose = () => {

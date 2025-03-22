@@ -21,10 +21,18 @@ export default function RemoteSoundCard({ sound, isPlaying, isDeleteMode = false
   
   const handleClick = () => {
     if (!isDeleteMode) {
+      console.log('Sound card clicked:', sound);
+      
       if (isPlaying) {
+        console.log('Stopping sound:', sound.id);
         stopSound();
       } else {
-        playSound(sound.id);
+        console.log('Attempting to play sound:', sound.id);
+        try {
+          playSound(sound.id);
+        } catch (error) {
+          console.error('Error in handleClick when calling playSound:', error);
+        }
       }
     }
   };
