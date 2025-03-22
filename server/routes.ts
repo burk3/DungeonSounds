@@ -97,19 +97,41 @@ const verifyToken = async (req: AuthRequest, res: Response, next: NextFunction) 
       const decodedToken = await verifyFirebaseToken(token);
       
       if (!decodedToken || !decodedToken.email) {
+        console.error('Invalid token or missing email in decoded token:', decodedToken);
         return res.status(401).json({ message: 'Unauthorized: Invalid token or missing email' });
       }
       
       const email = decodedToken.email;
+      console.log('User attempting authentication:', email);
       
-      // Check if user is in allowlist
+      // Hardcoded check for admin user
+      if (email.toLowerCase() === 'burke.cates@gmail.com') {
+        console.log('Admin user authenticated successfully:', email);
+        // Create a user object for the admin
+        req.user = {
+          id: 0,
+          email: email,
+          isAdmin: true,
+          displayName: 'Admin',
+          uid: decodedToken.uid || 'admin-uid',
+          lastLogin: new Date().toISOString(),
+          createdAt: new Date().toISOString()
+        };
+        req.token = token;
+        return next();
+      }
+      
+      // For non-admin users, check if they're in the allowlist
       const isAllowed = await storage.isUserAllowed(email);
+      console.log(`User ${email} allowed status:`, isAllowed);
+      
       if (!isAllowed) {
         return res.status(403).json({ message: 'Forbidden: User not in allowlist' });
       }
       
       // Get user from storage
       const user = await storage.getAllowedUserByEmail(email);
+      console.log('Retrieved user from storage:', user);
       
       // Store user info for route handlers
       req.user = user;
@@ -118,11 +140,11 @@ const verifyToken = async (req: AuthRequest, res: Response, next: NextFunction) 
       next();
     } catch (error) {
       console.error('Error verifying token:', error);
-      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+      return res.status(401).json({ message: 'Unauthorized: Invalid token', error: String(error) });
     }
   } catch (error) {
     console.error('Authentication error:', error);
-    return res.status(500).json({ message: 'Server error during authentication' });
+    return res.status(500).json({ message: 'Server error during authentication', error: String(error) });
   }
 };
 

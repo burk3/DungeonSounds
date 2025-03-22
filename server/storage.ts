@@ -691,13 +691,25 @@ export class MemStorage implements IStorage {
   async isUserAllowed(email: string): Promise<boolean> {
     if (!email) return false;
     
-    // Check if user exists in database
+    // First check if we have the admin user hardcoded
+    if (email.toLowerCase() === 'burke.cates@gmail.com') {
+      console.log('Admin user detected:', email);
+      return true;
+    }
+    
+    // Then check if user exists in database
     const userData = await getUserData(email);
     return !!userData;
   }
 
   async isUserAdmin(email: string): Promise<boolean> {
     if (!email) return false;
+    
+    // First check if we have the admin user hardcoded
+    if (email.toLowerCase() === 'burke.cates@gmail.com') {
+      console.log('Admin privileges granted to:', email);
+      return true;
+    }
     
     // Check if user exists and is admin
     const userData = await getUserData(email);
