@@ -24,113 +24,136 @@ function WebSocketProviderComponent({ children }) {
   // Connect to WebSocket
   useEffect(() => {
     const connectWebSocket = () => {
+      console.log("Attempting to connect WebSocket...");
+      
       // Close any existing connection
       if (socketRef.current) {
-        socketRef.current.close();
+        console.log("Closing existing WebSocket connection");
+        try {
+          socketRef.current.close();
+        } catch (err) {
+          console.error("Error closing existing WebSocket:", err);
+        }
+        socketRef.current = null;
       }
 
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      const wsUrl = `${protocol}//${window.location.host}/ws`;
-      
-      const socket = new WebSocket(wsUrl);
-      socketRef.current = socket;
+      try {
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        const wsUrl = `${protocol}//${window.location.host}/ws`;
+        console.log("Connecting to WebSocket URL:", wsUrl);
+        
+        const socket = new WebSocket(wsUrl);
+        socketRef.current = socket;
 
-      socket.onopen = () => {
-        console.log("WebSocket connection established");
-        setConnected(true);
-        
-        // Send connect message with client type
-        const clientType = window.location.pathname.includes("playback") 
-          ? "playback" 
-          : "remote";
-        
-        console.log(`Sending connect message as ${clientType} client`);
-        
-        try {
-          const connectMessage = {
-            type: "connect",
-            data: { clientType }
-          };
+        socket.onopen = () => {
+          console.log("WebSocket connection established");
+          setConnected(true);
           
-          const messageStr = JSON.stringify(connectMessage);
-          console.log("Connection message to send:", messageStr);
+          // Send connect message with client type
+          const clientType = window.location.pathname.includes("playback") 
+            ? "playback" 
+            : "remote";
           
-          socket.send(messageStr);
+          console.log(`Sending connect message as ${clientType} client`);
           
+          try {
+            const connectMessage = {
+              type: "connect",
+              data: { clientType }
+            };
+            
+            const messageStr = JSON.stringify(connectMessage);
+            console.log("Connection message to send:", messageStr);
+            
+            socket.send(messageStr);
+            
+            toast({
+              title: "Connected to soundboard",
+              description: `Connected as ${clientType} client`,
+            });
+          } catch (error) {
+            console.error("Error in onopen when sending connect message:", error);
+            toast({
+              title: "Connection Error",
+              description: "Connected but failed to initialize client type",
+              variant: "destructive",
+            });
+          }
+        };
+
+        socket.onclose = () => {
+          setConnected(false);
+          console.log("WebSocket connection closed");
           toast({
-            title: "Connected to soundboard",
-            description: `Connected as ${clientType} client`,
-          });
-        } catch (error) {
-          console.error("Error in onopen when sending connect message:", error);
-          toast({
-            title: "Connection Error",
-            description: "Connected but failed to initialize client type",
+            title: "Disconnected",
+            description: "Lost connection to the soundboard",
             variant: "destructive",
           });
-        }
-      };
+          
+          // Try to reconnect after a delay
+          setTimeout(connectWebSocket, 3000);
+        };
 
-      socket.onclose = () => {
-        setConnected(false);
+        socket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          toast({
+            title: "Connection Error",
+            description: "Failed to connect to the soundboard",
+            variant: "destructive",
+          });
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            console.log("Received WebSocket message:", message);
+            
+            switch (message.type) {
+              case "nowPlaying":
+                setCurrentSound(message.data.sound);
+                break;
+              case "soundAdded":
+                // Invalidate React Query cache to update sound list across all clients
+                queryClient.invalidateQueries({ queryKey: ["/api/sounds"] });
+                toast({
+                  title: "New Sound Added",
+                  description: `"${message.data.sound.name}" has been added`,
+                });
+                break;
+              case "soundDeleted":
+                // Invalidate React Query cache to update sound list across all clients
+                queryClient.invalidateQueries({ queryKey: ["/api/sounds"] });
+                toast({
+                  title: "Sound Deleted",
+                  description: "A sound has been removed from the soundboard",
+                });
+                break;
+              case "volume":
+                setVolumeState(message.data.volume);
+                break;
+              case "error":
+                toast({
+                  title: "Error",
+                  description: message.data.message,
+                  variant: "destructive",
+                });
+                break;
+            }
+          } catch (err) {
+            console.error("Error parsing WebSocket message:", err);
+          }
+        };
+      } catch (err) {
+        console.error("Error setting up WebSocket:", err);
         toast({
-          title: "Disconnected",
-          description: "Lost connection to the soundboard",
+          title: "Connection Error",
+          description: "Failed to set up WebSocket connection",
           variant: "destructive",
         });
         
-        // Try to reconnect after a delay
-        setTimeout(connectWebSocket, 3000);
-      };
-
-      socket.onerror = (error) => {
-        console.error("WebSocket error:", error);
-        toast({
-          title: "Connection Error",
-          description: "Failed to connect to the soundboard",
-          variant: "destructive",
-        });
-      };
-
-      socket.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          
-          switch (message.type) {
-            case "nowPlaying":
-              setCurrentSound(message.data.sound);
-              break;
-            case "soundAdded":
-              // Invalidate React Query cache to update sound list across all clients
-              queryClient.invalidateQueries({ queryKey: ["/api/sounds"] });
-              toast({
-                title: "New Sound Added",
-                description: `"${message.data.sound.name}" has been added`,
-              });
-              break;
-            case "soundDeleted":
-              // Invalidate React Query cache to update sound list across all clients
-              queryClient.invalidateQueries({ queryKey: ["/api/sounds"] });
-              toast({
-                title: "Sound Deleted",
-                description: "A sound has been removed from the soundboard",
-              });
-              break;
-            case "volume":
-              setVolumeState(message.data.volume);
-              break;
-            case "error":
-              toast({
-                title: "Error",
-                description: message.data.message,
-                variant: "destructive",
-              });
-              break;
-          }
-        } catch (err) {
-          console.error("Error parsing WebSocket message:", err);
-        }
-      };
+        // Try again after delay
+        setTimeout(connectWebSocket, 5000);
+      }
     };
 
     connectWebSocket();
@@ -138,7 +161,9 @@ function WebSocketProviderComponent({ children }) {
     // Cleanup on unmount
     return () => {
       if (socketRef.current) {
+        console.log("Cleaning up WebSocket connection on unmount");
         socketRef.current.close();
+        socketRef.current = null;
       }
     };
   }, [toast]);
@@ -198,6 +223,7 @@ function WebSocketProviderComponent({ children }) {
 
   // Helper for stopping sound
   const stopSound = useCallback(() => {
+    console.log("Stopping current sound");
     sendMessage({
       type: "stop"
     });
@@ -205,6 +231,7 @@ function WebSocketProviderComponent({ children }) {
 
   // Helper for adjusting volume
   const setVolume = useCallback((newVolume) => {
+    console.log("Setting volume to:", newVolume);
     sendMessage({
       type: "volume",
       data: { volume: newVolume }
