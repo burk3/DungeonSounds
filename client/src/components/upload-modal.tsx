@@ -71,7 +71,6 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   
   const resetForm = () => {
     setName("");
-    setCategory("");
     setFile(null);
     setUploadProgress(0);
     setIsUploading(false);
@@ -122,7 +121,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
     
     const formData = new FormData();
     formData.append("name", name);
-    formData.append("category", category);
+    formData.append("category", "effects"); // Always use effects category for simplicity
     formData.append("file", file);
     
     setIsUploading(true);
@@ -138,7 +137,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
           <div className="flex justify-between items-center mb-4">
             <h2 className="font-heading text-xl font-bold">Upload New Sound</h2>
             <button className="text-gray-500 hover:text-gray-700" onClick={onClose}>
-              <span className="material-icons">close</span>
+              <span className="material-icons" aria-hidden="true">close</span>
             </button>
           </div>
           
@@ -178,7 +177,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                   onChange={handleFileChange}
                   required
                 />
-                <span className="material-icons text-3xl text-gray-400">upload_file</span>
+                <span className="material-icons text-3xl text-gray-400" aria-hidden="true">upload_file</span>
                 <p className="mt-2 text-sm text-gray-500">
                   {file ? `Selected: ${file.name}` : "Click to select or drag and drop an audio file"}
                 </p>

@@ -32,18 +32,17 @@ export default function NowPlaying() {
         {currentSound ? (
           <>
             <div className="flex items-center mb-3 md:mb-0">
-              <span className="material-icons text-secondary animate-pulse mr-3">graphic_eq</span>
+              <span className="material-icons text-secondary animate-pulse mr-3" aria-hidden="true">graphic_eq</span>
               <div>
                 <p className="text-sm uppercase tracking-wider text-gray-400">Now Playing</p>
                 <h2 className="text-xl font-medium">{currentSound.name}</h2>
-                <p className="text-sm text-gray-300">{currentSound.category}</p>
               </div>
             </div>
             
             <div className="flex items-center space-x-6">
               {/* Volume Control */}
               <div className="flex items-center space-x-2">
-                <span className="material-icons">volume_down</span>
+                <span className="material-icons" aria-hidden="true">volume_down</span>
                 <input 
                   type="range"
                   className="w-32 h-2 bg-gray-700 rounded-lg appearance-none"
@@ -51,16 +50,18 @@ export default function NowPlaying() {
                   max="100"
                   value={localVolume}
                   onChange={handleVolumeChange}
+                  aria-label="Volume Control"
                 />
-                <span className="material-icons">volume_up</span>
+                <span className="material-icons" aria-hidden="true">volume_up</span>
               </div>
               
               {/* Stop Button */}
               <button 
                 className="bg-error/90 hover:bg-error text-white rounded-full p-2 flex items-center"
                 onClick={stopSound}
+                aria-label="Stop Sound"
               >
-                <span className="material-icons">stop</span>
+                <span className="material-icons" aria-hidden="true">stop</span>
               </button>
             </div>
           </>

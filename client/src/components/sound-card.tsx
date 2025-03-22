@@ -18,8 +18,9 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
   };
   
   // Format time since upload
-  const getTimeAgo = (date: Date) => {
+  const getTimeAgo = (date: Date | null) => {
     try {
+      if (!date) return "recently";
       return formatDistanceToNow(new Date(date), { addSuffix: true });
     } catch (e) {
       return "recently";
@@ -46,9 +47,6 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
           </p>
         </div>
         <div className="flex space-x-2">
-          <span className="inline-block bg-primary/10 text-primary text-xs px-2 py-1 rounded">
-            {sound.category}
-          </span>
           <span className="inline-block bg-gray-100 text-gray-800 text-xs px-2 py-1 rounded">
             {formatDuration(sound.duration || 0)}
           </span>
@@ -56,14 +54,15 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
       </div>
       <div className="mt-4 flex justify-between items-center">
         <div className="flex items-center text-sm text-gray-500">
-          <span className="material-icons text-sm mr-1">schedule</span>
+          <span className="material-icons text-sm mr-1" aria-hidden="true">schedule</span>
           <span>Added {getTimeAgo(sound.uploadedAt)}</span>
         </div>
         <button 
           className={`${isPlaying ? 'bg-error' : 'bg-secondary'} text-white rounded-full w-10 h-10 flex items-center justify-center shadow-sm`}
           onClick={handleClick}
+          aria-label={isPlaying ? "Stop sound" : "Play sound"}
         >
-          <span className="material-icons">
+          <span className="material-icons" aria-hidden="true">
             {isPlaying ? 'stop' : 'play_arrow'}
           </span>
         </button>
