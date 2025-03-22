@@ -318,60 +318,8 @@ export class MemStorage implements IStorage {
     this.allowedUsers = new Map();
     this.currentSoundId = 1;
     this.currentUserId = 1;
-
-    // Add admin user on startup (burke.cates@gmail.com)
-    this.setupAdminUser();
-  }
-
-  private async setupAdminUser() {
-    const adminEmail = "burke.cates@gmail.com";
-
-    // Check in database first to avoid duplicate calls
-    const userData = await getUserData(adminEmail);
-
-    if (userData) {
-      // Make sure admin flag is set
-      if (!userData.isAdmin) {
-        userData.isAdmin = true;
-        await saveUserData(adminEmail, userData);
-        console.log("Admin privileges granted to:", adminEmail);
-      }
-
-      // Load into in-memory cache
-      const id = this.currentUserId++;
-      const adminUser: AllowedUser = {
-        id,
-        email: userData.email,
-        isAdmin: true, // Ensure admin flag
-        createdAt: userData.createdAt
-          ? new Date(userData.createdAt)
-          : new Date(),
-      };
-
-      this.allowedUsers.set(id, adminUser);
-    } else {
-      // Create new admin user in database
-      const now = new Date();
-      const newUserData: UserData = {
-        email: adminEmail,
-        isAdmin: true,
-        createdAt: now.toISOString(),
-      };
-
-      await saveUserData(adminEmail, newUserData);
-
-      // Create in-memory version
-      const id = this.currentUserId++;
-      const adminUser: AllowedUser = {
-        id,
-        email: adminEmail,
-        isAdmin: true,
-        createdAt: now,
-      };
-
-      this.allowedUsers.set(id, adminUser);
-      console.log("Admin user created:", adminEmail);
-    }
+    
+    // No longer add hardcoded admin users on startup
   }
 
   // Sound operations
@@ -567,56 +515,6 @@ export class MemStorage implements IStorage {
       // Create a set to track which users we've processed
       const processedEmails = new Set<string>();
       const validUsers: AllowedUser[] = [];
-      
-      // Always ensure our known users are included
-      const knownUsers = [
-        "burke.cates@gmail.com",
-        "burke@threatmate.com"
-      ];
-      
-      // First add the known users
-      for (const email of knownUsers) {
-        console.log("Checking known user:", email);
-        processedEmails.add(email.toLowerCase());
-        
-        // Get user data from database
-        let userData = await getUserData(email);
-        
-        // If not found, create it
-        if (!userData) {
-          console.log("Creating missing known user:", email);
-          const isAdmin = email.toLowerCase() === "burke.cates@gmail.com";
-          
-          // Add to database
-          const now = new Date();
-          userData = {
-            email: email,
-            isAdmin: isAdmin,
-            createdAt: now.toISOString()
-          };
-          
-          await saveUserData(email, userData);
-        }
-        
-        // Always ensure admin status for the main admin
-        if (email.toLowerCase() === "burke.cates@gmail.com" && !userData.isAdmin) {
-          userData.isAdmin = true;
-          await saveUserData(email, userData);
-        }
-        
-        // Add to our result list
-        const id = this.currentUserId++;
-        const user: AllowedUser = {
-          id,
-          email: userData.email,
-          isAdmin: userData.isAdmin,
-          createdAt: userData.createdAt
-            ? new Date(userData.createdAt)
-            : new Date(),
-        };
-        
-        validUsers.push(user);
-      }
       
       // Now get any additional keys from the database
       const userKeys = await getAllUserKeys();
