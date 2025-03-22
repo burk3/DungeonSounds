@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 // Create WebSocketContext
 const WebSocketContext = createContext(null);
@@ -82,18 +83,20 @@ function WebSocketProviderComponent({ children }) {
               setCurrentSound(message.data.sound);
               break;
             case "soundAdded":
+              // Invalidate React Query cache to update sound list across all clients
+              queryClient.invalidateQueries({ queryKey: ["/api/sounds"] });
               toast({
                 title: "New Sound Added",
                 description: `"${message.data.sound.name}" has been added`,
               });
-              // We'll let the query client handle refreshing the list
               break;
             case "soundDeleted":
+              // Invalidate React Query cache to update sound list across all clients
+              queryClient.invalidateQueries({ queryKey: ["/api/sounds"] });
               toast({
                 title: "Sound Deleted",
                 description: "A sound has been removed from the soundboard",
               });
-              // We'll let the query client handle refreshing the list
               break;
             case "volume":
               setVolumeState(message.data.volume);

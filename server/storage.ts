@@ -27,8 +27,19 @@ interface SoundMetadata {
   uploadedAt: string; // ISO date string
 }
 
+// Define user data structure
+interface UserData {
+  email: string;
+  isAdmin: boolean;
+  displayName?: string | null;
+  uid?: string | null;
+  lastLogin?: string | null;
+  createdAt?: string; // ISO date string
+}
+
 // Helper functions for key-value metadata
 const getSoundMetadataKey = (filename: string) => `sound:${filename}`;
+const getUserKey = (email: string) => `user:${email.toLowerCase()}`;
 
 async function getSoundMetadata(filename: string): Promise<SoundMetadata | null> {
   try {
@@ -108,6 +119,60 @@ async function getAllSoundKeys(): Promise<string[]> {
   }
 }
 
+// User related database functions
+async function saveUserData(email: string, userData: UserData): Promise<void> {
+  try {
+    const key = getUserKey(email);
+    await db.set(key, userData);
+    console.log(`Saved user data for: ${email}`);
+  } catch (error) {
+    console.error(`Error saving user data for ${email}:`, error);
+  }
+}
+
+async function getUserData(email: string): Promise<UserData | null> {
+  try {
+    const key = getUserKey(email);
+    const userData = await db.get(key);
+    
+    if (!userData) return null;
+    
+    // Validate the data has at least email and isAdmin
+    if (typeof userData === 'object' && 
+        'email' in userData && 
+        'isAdmin' in userData) {
+      return userData as UserData;
+    }
+    
+    console.warn(`Invalid user data format for ${email}`);
+    return null;
+  } catch (error) {
+    console.error(`Error getting user data for ${email}:`, error);
+    return null;
+  }
+}
+
+async function deleteUserData(email: string): Promise<void> {
+  try {
+    const key = getUserKey(email);
+    await db.delete(key);
+    console.log(`Deleted user data for: ${email}`);
+  } catch (error) {
+    console.error(`Error deleting user data for ${email}:`, error);
+  }
+}
+
+async function getAllUserKeys(): Promise<string[]> {
+  try {
+    // List all keys that start with "user:"
+    const keys = await db.list("user:");
+    return Object.keys(keys);
+  } catch (error) {
+    console.error("Error listing user keys:", error);
+    return [];
+  }
+}
+
 // Storage interface
 export interface IStorage {
   // Sound operations
@@ -156,15 +221,58 @@ export class MemStorage implements IStorage {
 
   private async setupAdminUser() {
     const adminEmail = "burke.cates@gmail.com";
-    const existingAdmin = await this.getAllowedUserByEmail(adminEmail);
-
-    if (!existingAdmin) {
-      await this.createAllowedUser({
+    
+    // Check in database first to avoid duplicate calls
+    const userData = await getUserData(adminEmail);
+    
+    if (userData) {
+      // Make sure admin flag is set
+      if (!userData.isAdmin) {
+        userData.isAdmin = true;
+        await saveUserData(adminEmail, userData);
+        console.log("Admin privileges granted to:", adminEmail);
+      }
+      
+      // Load into in-memory cache
+      const id = this.currentUserId++;
+      const adminUser: AllowedUser = {
+        id,
+        email: userData.email,
+        displayName: userData.displayName || null,
+        isAdmin: true, // Ensure admin flag
+        uid: userData.uid || null,
+        lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : null,
+        createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
+      };
+      
+      this.allowedUsers.set(id, adminUser);
+    } else {
+      // Create new admin user in database
+      const now = new Date();
+      const newUserData: UserData = {
+        email: adminEmail,
+        isAdmin: true,
+        displayName: "Admin",
+        uid: null,
+        lastLogin: null,
+        createdAt: now.toISOString(),
+      };
+      
+      await saveUserData(adminEmail, newUserData);
+      
+      // Create in-memory version
+      const id = this.currentUserId++;
+      const adminUser: AllowedUser = {
+        id,
         email: adminEmail,
         displayName: "Admin",
         isAdmin: true,
-        uid: null, // Will be set when user logs in
-      });
+        uid: null,
+        lastLogin: null,
+        createdAt: now,
+      };
+      
+      this.allowedUsers.set(id, adminUser);
       console.log("Admin user created:", adminEmail);
     }
   }
@@ -186,65 +294,65 @@ export class MemStorage implements IStorage {
       // Track which files we've processed to avoid duplicates
       const processedFiles = new Set<string>();
 
-      // Convert bucket objects to Sound objects
-      const sounds: Sound[] = await Promise.all(
-        files.map(async (file) => {
-          // Clean the filename from the object storage
-          const originalFilename = file.name;
-          const cleanFilename = originalFilename.replace(/^sounds\//, '');
-          
-          // Skip if we've already processed this file (by its clean name)
-          if (processedFiles.has(cleanFilename)) {
-            return null;
-          }
-          
-          processedFiles.add(cleanFilename);
-          
-          // Find an existing sound with the same filename (with or without prefix)
-          const existingSound = Array.from(this.sounds.values()).find(sound => {
-            const cleanSoundFilename = sound.filename.replace(/^sounds\//, '');
-            return (
-              sound.filename === originalFilename || 
-              cleanSoundFilename === cleanFilename ||
-              sound.filename === cleanFilename ||
-              cleanSoundFilename === originalFilename
-            );
-          });
-
-          if (existingSound) {
-            return existingSound;
-          }
-
-          // Get metadata from database with our improved function that checks both path styles
-          const metadata = await getSoundMetadata(originalFilename);
-          
-          // Create a new sound entry using the clean filename
-          const id = this.currentSoundId++;
-          const fileNameWithoutExt = path.basename(
-            cleanFilename,
-            path.extname(cleanFilename),
+      // Process files and build array of sounds to return
+      const processedSounds: Sound[] = [];
+      
+      for (const file of files) {
+        // Clean the filename from the object storage
+        const originalFilename = file.name;
+        const cleanFilename = originalFilename.replace(/^sounds\//, '');
+        
+        // Skip if we've already processed this file (by its clean name)
+        if (processedFiles.has(cleanFilename)) {
+          continue;
+        }
+        
+        processedFiles.add(cleanFilename);
+        
+        // Find an existing sound with the same filename (with or without prefix)
+        const existingSound = Array.from(this.sounds.values()).find(sound => {
+          const cleanSoundFilename = sound.filename.replace(/^sounds\//, '');
+          return (
+            sound.filename === originalFilename || 
+            cleanSoundFilename === cleanFilename ||
+            sound.filename === cleanFilename ||
+            cleanSoundFilename === originalFilename
           );
+        });
 
-          const newSound: Sound = {
-            id,
-            name: fileNameWithoutExt,
-            // Store the cleaned filename without the sounds/ prefix
-            filename: cleanFilename,
-            category: "effects",
-            uploader: metadata?.uploader || null,
-            uploadedAt: metadata?.uploadedAt ? new Date(metadata.uploadedAt) : new Date(),
-          };
+        if (existingSound) {
+          processedSounds.push(existingSound);
+          continue;
+        }
 
-          // Save in our in-memory collection
-          this.sounds.set(id, newSound);
-          console.log(`Added sound: ${newSound.name} (${newSound.filename})`);
+        // Get metadata from database with our improved function that checks both path styles
+        const metadata = await getSoundMetadata(originalFilename);
+        
+        // Create a new sound entry using the clean filename
+        const id = this.currentSoundId++;
+        const fileNameWithoutExt = path.basename(
+          cleanFilename,
+          path.extname(cleanFilename),
+        );
 
-          return newSound;
-        }),
-      );
+        const newSound: Sound = {
+          id,
+          name: fileNameWithoutExt,
+          // Store the cleaned filename without the sounds/ prefix
+          filename: cleanFilename,
+          category: "effects",
+          uploader: metadata?.uploader || null,
+          uploadedAt: metadata?.uploadedAt ? new Date(metadata.uploadedAt) : new Date(),
+        };
 
-      // Filter out any null entries (from skipped duplicates)
-      return sounds.filter(sound => sound !== null);
+        // Save in our in-memory collection
+        this.sounds.set(id, newSound);
+        console.log(`Added sound: ${newSound.name} (${newSound.filename})`);
+        
+        processedSounds.push(newSound);
+      }
+
+      return processedSounds;
     } catch (error) {
       console.error("Error listing sounds from object storage:", error);
       // Fallback to in-memory sounds
@@ -354,22 +462,159 @@ export class MemStorage implements IStorage {
 
   // User operations
   async getAllowedUsers(): Promise<AllowedUser[]> {
-    return Array.from(this.allowedUsers.values());
+    try {
+      // Get all user keys
+      const userKeys = await getAllUserKeys();
+      
+      // Load and process users
+      const validUsers: AllowedUser[] = [];
+      
+      for (const key of userKeys) {
+        // Extract email from key (remove "user:" prefix)
+        const email = key.replace(/^user:/, '');
+        const userData = await getUserData(email);
+        
+        if (!userData) continue;
+        
+        // Convert to AllowedUser format
+        const user: AllowedUser = {
+          id: this.currentUserId++, // Generate an in-memory ID
+          email: userData.email,
+          displayName: userData.displayName || null,
+          isAdmin: userData.isAdmin,
+          uid: userData.uid || null,
+          lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : null,
+          createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
+        };
+        
+        validUsers.push(user);
+      }
+      
+      // Update in-memory collection for faster access later
+      this.allowedUsers.clear();
+      validUsers.forEach(user => {
+        this.allowedUsers.set(user.id, user);
+      });
+      
+      return validUsers;
+    } catch (error) {
+      console.error("Error loading users from database:", error);
+      return Array.from(this.allowedUsers.values());
+    }
   }
 
   async getAllowedUserByEmail(email: string): Promise<AllowedUser | undefined> {
-    return Array.from(this.allowedUsers.values()).find(
+    // Check in-memory cache first for faster response
+    const cachedUser = Array.from(this.allowedUsers.values()).find(
       (user) => user.email === email,
     );
+    
+    if (cachedUser) {
+      return cachedUser;
+    }
+    
+    // If not found in cache, check database
+    const userData = await getUserData(email);
+    
+    if (!userData) {
+      return undefined;
+    }
+    
+    // Convert to AllowedUser and cache it
+    const id = this.currentUserId++;
+    const user: AllowedUser = {
+      id,
+      email: userData.email,
+      displayName: userData.displayName || null,
+      isAdmin: userData.isAdmin,
+      uid: userData.uid || null,
+      lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : null,
+      createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
+    };
+    
+    // Add to in-memory cache
+    this.allowedUsers.set(id, user);
+    return user;
   }
 
   async getAllowedUserByUid(uid: string): Promise<AllowedUser | undefined> {
-    return Array.from(this.allowedUsers.values()).find(
+    if (!uid) return undefined;
+    
+    // Check in-memory cache first
+    const cachedUser = Array.from(this.allowedUsers.values()).find(
       (user) => user.uid === uid,
     );
+    
+    if (cachedUser) {
+      return cachedUser;
+    }
+    
+    // If not found, we need to check all users in the database
+    // This is less efficient but uid lookups should be rare
+    const userKeys = await getAllUserKeys();
+    
+    for (const key of userKeys) {
+      const email = key.replace(/^user:/, '');
+      const userData = await getUserData(email);
+      
+      if (userData && userData.uid === uid) {
+        // Convert to AllowedUser
+        const id = this.currentUserId++;
+        const user: AllowedUser = {
+          id,
+          email: userData.email,
+          displayName: userData.displayName || null,
+          isAdmin: userData.isAdmin,
+          uid: userData.uid,
+          lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : null,
+          createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
+        };
+        
+        // Add to in-memory cache
+        this.allowedUsers.set(id, user);
+        return user;
+      }
+    }
+    
+    return undefined;
   }
 
   async createAllowedUser(user: InsertAllowedUser): Promise<AllowedUser> {
+    // Check if user already exists in database
+    const existingUserData = await getUserData(user.email);
+    
+    if (existingUserData) {
+      // User exists, convert to AllowedUser format
+      const id = this.currentUserId++;
+      const existingUser: AllowedUser = {
+        id,
+        email: existingUserData.email,
+        displayName: existingUserData.displayName || null,
+        isAdmin: existingUserData.isAdmin,
+        uid: existingUserData.uid || null,
+        lastLogin: existingUserData.lastLogin ? new Date(existingUserData.lastLogin) : null,
+        createdAt: existingUserData.createdAt ? new Date(existingUserData.createdAt) : new Date(),
+      };
+      
+      // Add to in-memory collection
+      this.allowedUsers.set(id, existingUser);
+      return existingUser;
+    }
+    
+    // Create new user in database
+    const now = new Date();
+    const userData: UserData = {
+      email: user.email,
+      isAdmin: user.isAdmin === true,
+      displayName: user.displayName || null,
+      uid: user.uid || null,
+      lastLogin: null,
+      createdAt: now.toISOString(),
+    };
+    
+    await saveUserData(user.email, userData);
+    
+    // Create in-memory version
     const id = this.currentUserId++;
     const newUser: AllowedUser = {
       id,
@@ -378,9 +623,12 @@ export class MemStorage implements IStorage {
       isAdmin: user.isAdmin === true,
       uid: user.uid || null,
       lastLogin: null,
-      createdAt: new Date(),
+      createdAt: now,
     };
+    
+    // Add to in-memory collection
     this.allowedUsers.set(id, newUser);
+    console.log(`Created new user: ${user.email}, isAdmin: ${user.isAdmin === true}`);
     return newUser;
   }
 
@@ -388,26 +636,72 @@ export class MemStorage implements IStorage {
     id: number,
     updates: Partial<AllowedUser>,
   ): Promise<AllowedUser | undefined> {
+    // Get the user from in-memory collection
     const user = this.allowedUsers.get(id);
     if (!user) return undefined;
-
-    const updatedUser = { ...user, ...updates };
+    
+    // Update in-memory version
+    const updatedUser: AllowedUser = { ...user, ...updates };
     this.allowedUsers.set(id, updatedUser);
+    
+    // Update in database
+    const userData = await getUserData(user.email);
+    
+    if (userData) {
+      // Update the database copy
+      const updatedUserData: UserData = {
+        ...userData,
+        isAdmin: updatedUser.isAdmin,
+        displayName: updatedUser.displayName,
+        uid: updatedUser.uid,
+        lastLogin: updatedUser.lastLogin ? updatedUser.lastLogin.toISOString() : null,
+      };
+      
+      await saveUserData(user.email, updatedUserData);
+      console.log(`Updated user data for: ${user.email}`);
+    } else {
+      // Create new record in database
+      const newUserData: UserData = {
+        email: updatedUser.email,
+        isAdmin: updatedUser.isAdmin,
+        displayName: updatedUser.displayName,
+        uid: updatedUser.uid,
+        lastLogin: updatedUser.lastLogin ? updatedUser.lastLogin.toISOString() : null,
+        createdAt: updatedUser.createdAt ? updatedUser.createdAt.toISOString() : new Date().toISOString(),
+      };
+      
+      await saveUserData(updatedUser.email, newUserData);
+    }
+    
     return updatedUser;
   }
 
   async deleteAllowedUser(id: number): Promise<boolean> {
+    // Get user from in-memory collection
+    const user = this.allowedUsers.get(id);
+    if (!user) return false;
+    
+    // Delete from database
+    await deleteUserData(user.email);
+    
+    // Delete from in-memory collection
     return this.allowedUsers.delete(id);
   }
 
   async isUserAllowed(email: string): Promise<boolean> {
-    const user = await this.getAllowedUserByEmail(email);
-    return !!user;
+    if (!email) return false;
+    
+    // Check if user exists in database
+    const userData = await getUserData(email);
+    return !!userData;
   }
 
   async isUserAdmin(email: string): Promise<boolean> {
-    const user = await this.getAllowedUserByEmail(email);
-    return user ? user.isAdmin : false;
+    if (!email) return false;
+    
+    // Check if user exists and is admin
+    const userData = await getUserData(email);
+    return userData ? userData.isAdmin : false;
   }
 
   // File operations
