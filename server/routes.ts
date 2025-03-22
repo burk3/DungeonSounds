@@ -114,8 +114,8 @@ const verifyToken = async (req: AuthRequest, res: Response, next: NextFunction) 
           isAdmin: true,
           displayName: 'Admin',
           uid: decodedToken.uid || 'admin-uid',
-          lastLogin: new Date().toISOString(),
-          createdAt: new Date().toISOString()
+          lastLogin: new Date(),
+          createdAt: new Date()
         };
         req.token = token;
         return next();
