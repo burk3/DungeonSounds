@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D&D Soundboard</title>
+  <style>
+    /* Custom styles for volume slider */
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #7C4DFF;
+      cursor: pointer;
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #7C4DFF;
+      cursor: pointer;
+    }
+    .sound-card {
+      transition: all 0.2s ease;
+    }
+    .sound-card:hover {
+      transform: translateY(-2px);
+    }
+    .sound-card.playing {
+      box-shadow: 0 0 0 2px #00C853, 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
