@@ -27,7 +27,7 @@ export default function NowPlaying() {
   if (!isPlayback) return null;
   
   return (
-    <div className="bg-stone-900 border-b border-amber-800/40 text-amber-100 p-4 sticky top-0 z-10 shadow-md">
+    <div className="bg-stone-900 border-b border-amber-800/40 text-amber-100 p-4 sticky top-0 z-10 shadow-md min-h-[72px]">
       <div className="container mx-auto flex flex-col md:flex-row justify-between items-center">
         {currentSound ? (
           <>

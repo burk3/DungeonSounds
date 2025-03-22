@@ -40,19 +40,23 @@ export default function Remote() {
         </div>
       </header>
       
-      {/* Status Bar for showing what's playing */}
-      {currentSound && (
-        <div className="bg-stone-900 text-amber-100 p-3 shadow-md border-b border-amber-800/40">
-          <div className="container mx-auto flex items-center">
-            <span className="material-icons text-amber-500 animate-pulse mr-2" aria-hidden="true">graphic_eq</span>
-            <div className="overflow-hidden">
-              <div className="whitespace-nowrap overflow-ellipsis">
-                <span className="text-sm font-medium">Now Playing: {currentSound.name}</span>
+      {/* Status Bar for showing what's playing - always visible */}
+      <div className="bg-stone-900 text-amber-100 p-3 shadow-md border-b border-amber-800/40 h-12 flex items-center">
+        <div className="container mx-auto flex items-center">
+          {currentSound ? (
+            <>
+              <span className="material-icons text-amber-500 animate-pulse mr-2" aria-hidden="true">graphic_eq</span>
+              <div className="overflow-hidden">
+                <div className="whitespace-nowrap overflow-ellipsis">
+                  <span className="text-sm font-medium">Now Playing: {currentSound.name}</span>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          ) : (
+            <span className="text-sm text-amber-400/50">No sound playing</span>
+          )}
         </div>
-      )}
+      </div>
       
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
