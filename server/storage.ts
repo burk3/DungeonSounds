@@ -124,9 +124,20 @@ async function getAllSoundKeys(): Promise<string[]> {
 // User related database functions
 async function saveUserData(email: string, userData: UserData): Promise<void> {
   try {
-    const key = getUserKey(email);
-    await db.set(key, userData);
-    console.log(`Saved user data for: ${email}`);
+    // Normalize email to lowercase for consistent lookup
+    const normalizedEmail = email.toLowerCase();
+    const key = getUserKey(normalizedEmail);
+    
+    // Make sure userData has the normalized email
+    const normalizedUserData: UserData = {
+      ...userData,
+      email: normalizedEmail,
+      createdAt: userData.createdAt || new Date().toISOString()
+    };
+    
+    // Save to database
+    await db.set(key, normalizedUserData);
+    console.log(`Saved user data for: ${normalizedEmail}`);
   } catch (error) {
     console.error(`Error saving user data for ${email}:`, error);
   }
@@ -151,12 +162,15 @@ async function getUserData(email: string): Promise<UserData | null> {
     }
 
     // Validate the data has at least email and isAdmin
-    if (
-      typeof userData === "object" &&
-      "email" in userData &&
-      "isAdmin" in userData
-    ) {
-      return userData as UserData;
+    if (typeof userData === "object") {
+      // Handle wrapped data (sometimes Replit DB nests data in another layer)
+      if ("value" in userData && typeof userData.value === "object") {
+        userData = userData.value;
+      }
+
+      if ("email" in userData && "isAdmin" in userData) {
+        return userData as UserData;
+      }
     }
 
     console.warn(`Invalid user data format for ${email}`);
@@ -189,7 +203,12 @@ async function getAllUserKeys(): Promise<string[]> {
     let keys: any;
     
     if (typeof result === "object" && "ok" in result && result.ok === true && "value" in result) {
-      // Extract actual keys from the "value" property
+      // For newer Replit Database format, the value contains an array of keys
+      if (Array.isArray(result.value)) {
+        return result.value; // Return the array of keys directly
+      }
+      
+      // Otherwise, extract actual keys from the "value" property
       keys = result.value;
     } else {
       // For backward compatibility, try to use the result directly
