@@ -5,8 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Playback from "@/pages/playback";
 import Remote from "@/pages/remote";
-// Import directly from the JSX file to avoid TypeScript errors
-import WebSocketProviderComponent from "./lib/websocket.jsx";
+import { WebSocketProvider } from "./lib/websocket";
 import { useEffect } from "react";
 
 function Router() {
@@ -31,10 +30,10 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WebSocketProviderComponent>
+      <WebSocketProvider>
         <Router />
         <Toaster />
-      </WebSocketProviderComponent>
+      </WebSocketProvider>
     </QueryClientProvider>
   );
 }

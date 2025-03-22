@@ -2,7 +2,6 @@ import { useState, ChangeEvent, FormEvent, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { SOUND_CATEGORIES } from "@shared/schema";
 
 interface UploadModalProps {
   isOpen: boolean;

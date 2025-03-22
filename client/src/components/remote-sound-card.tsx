@@ -23,15 +23,13 @@ export default function RemoteSoundCard({ sound, isPlaying }: RemoteSoundCardPro
     >
       <div className="mb-2">
         <h3 className="font-medium text-base truncate">{sound.name}</h3>
-        <span className="inline-block bg-primary/10 text-primary text-xs px-2 py-1 rounded">
-          {sound.category}
-        </span>
       </div>
       <button 
         className={`${isPlaying ? 'bg-error' : 'bg-secondary'} mt-auto text-white rounded-full w-full py-2 flex items-center justify-center`}
         onClick={handleClick}
+        aria-label={isPlaying ? "Stop sound" : "Play sound"}
       >
-        <span className="material-icons mr-1">
+        <span className="material-icons mr-1" aria-hidden="true">
           {isPlaying ? 'stop' : 'play_arrow'}
         </span>
         {isPlaying ? 'Stop' : 'Play'}

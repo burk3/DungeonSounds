@@ -16,8 +16,8 @@ export const insertUserSchema = createInsertSchema(users).pick({
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
-// Sound categories
-export const SOUND_CATEGORIES = ["ambience", "effects", "music", "voices"] as const;
+// Sound categories - simplified to just effects
+export const SOUND_CATEGORIES = ["effects"] as const;
 export type SoundCategory = typeof SOUND_CATEGORIES[number];
 
 // Sound schema
