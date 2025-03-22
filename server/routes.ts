@@ -18,6 +18,7 @@ import fs from "fs";
 import { getAudioDurationInSeconds } from "get-audio-duration";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
+import { requireAuth, authMiddleware } from "./auth";
 
 // Create a temporary storage for uploads using multer
 const upload = multer({ 
@@ -256,8 +257,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Upload a new sound
-  app.post('/api/sounds', upload.single('file'), async (req, res) => {
+  // Upload a new sound (requires authentication)
+  app.post('/api/sounds', authMiddleware, requireAuth, upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
