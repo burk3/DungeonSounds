@@ -509,6 +509,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Debug endpoint for invite codes (admin only)
+  app.get('/api/admin/debug-invites', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      // Get access to the underlying database
+      const db = storage.getObjectStorage();
+      
+      // List all keys related to invite codes
+      const prefix = "invite:";
+      const listResult = await db.list({ prefix });
+      
+      console.log("Debug invite list result:", listResult);
+      
+      let inviteKeys: string[] = [];
+      
+      // Process the result based on its structure
+      if (listResult && listResult.ok && listResult.value) {
+        // If it's an array of StorageObjects, extract their keys
+        if (Array.isArray(listResult.value)) {
+          inviteKeys = listResult.value.map(obj => typeof obj === 'string' ? obj : 
+            (obj && typeof obj === 'object' && 'key' in obj) ? String(obj.key) : '');
+        } 
+        // If it's an object with keys, filter for our prefix
+        else if (typeof listResult.value === 'object') {
+          inviteKeys = Object.keys(listResult.value)
+            .filter(key => key.startsWith(prefix));
+        }
+      }
+      
+      // Get invite codes using the regular method too
+      const inviteCodes = await storage.getInviteCodes();
+      
+      res.json({
+        invites: inviteKeys,
+        inviteCodes: inviteCodes,
+        count: inviteKeys.length
+      });
+    } catch (err) {
+      console.error('Error debugging invite codes:', err);
+      res.status(500).json({ message: 'Error debugging invite codes' });
+    }
+  });
+  
   // Get all invite codes (admin only)
   app.get('/api/admin/invite-codes', verifyToken, requireAdmin, async (req, res) => {
     try {
@@ -528,41 +570,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!code) {
         return res.status(400).json({ 
           valid: false,
-          message: 'Invalid invite code' 
-        });
-      }
-      
-      const isValid = await storage.validateInviteCode(code);
-      
-      const response: ValidateInviteCodeResponse = {
-        valid: isValid,
-        message: isValid ? 'Valid invite code' : 'Invalid or expired invite code'
-      };
-      
-      res.json(response);
-    } catch (err) {
-      console.error('Error validating invite code:', err);
-      res.status(500).json({ 
-        valid: false,
-        message: 'Server error validating invite code' 
-      });
-    }
-  });
-  
-  // Validate an invite code
-  app.get('/api/invite/:code/validate', async (req, res) => {
-    try {
-      const { code } = req.params;
-      
-      if (!code) {
-        return res.status(400).json({ 
-          valid: false,
           message: 'Invite code is required' 
         });
       }
       
       // Validate the invite code
       const isValid = await storage.validateInviteCode(code);
+      
+      console.log(`Validating invite code ${code}: ${isValid ? 'VALID' : 'INVALID'}`);
       
       const response: ValidateInviteCodeResponse = {
         valid: isValid,

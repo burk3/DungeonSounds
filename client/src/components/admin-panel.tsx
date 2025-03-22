@@ -45,6 +45,32 @@ export default function AdminPanel({ queryClient }: AdminPanelProps) {
     refetchInterval: false
   });
   
+  // Function to directly check all KV store keys
+  async function debugListAllKeysInKV() {
+    try {
+      // Create a custom endpoint to get debug info
+      const response = await fetch('/api/admin/debug-invites');
+      const data = await response.json();
+      setDebugInvites(data.invites || []);
+      
+      // Show results in a toast
+      toast({
+        title: "Debug Results",
+        description: `Found ${data.invites?.length || 0} invite code entries in the database.`,
+        variant: "default",
+      });
+      
+      console.log("Debug invite data:", data);
+    } catch (error) {
+      console.error("Error debugging invite codes:", error);
+      toast({
+        title: "Debug Error",
+        description: "Failed to get debug info for invite codes.",
+        variant: "destructive",
+      });
+    }
+  }
+
   // Function to directly check if invite codes exist
   async function checkDirectInvites() {
     const foundCodes: InviteCode[] = [];
@@ -183,23 +209,41 @@ export default function AdminPanel({ queryClient }: AdminPanelProps) {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          <Button
-            onClick={() => createInviteCode()}
-            disabled={isCreatingCode}
-            className="bg-amber-600 hover:bg-amber-700"
-          >
-            {isCreatingCode ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating...
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Generate New Invite Code
-              </>
-            )}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => createInviteCode()}
+              disabled={isCreatingCode}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {isCreatingCode ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Generate New Invite Code
+                </>
+              )}
+            </Button>
+            
+            <Button
+              onClick={() => debugListAllKeysInKV()}
+              variant="outline"
+              className="border-amber-600 text-amber-600"
+            >
+              Debug KV Store
+            </Button>
+            
+            <Button
+              onClick={() => checkDirectInvites()}
+              variant="outline"
+              className="border-amber-600 text-amber-600"
+            >
+              Try Direct Validation
+            </Button>
+          </div>
 
           <Separator className="my-4" />
           
@@ -298,6 +342,23 @@ export default function AdminPanel({ queryClient }: AdminPanelProps) {
               </div>
             )}
           </div>
+          
+          {/* Debug section */}
+          {debugInvites.length > 0 && (
+            <>
+              <Separator className="my-4" />
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Debug Info - Invite Code Keys in Database</Label>
+                <div className="bg-gray-100 p-3 rounded-md">
+                  <code className="text-xs break-all whitespace-pre-wrap">
+                    {debugInvites.map((key, index) => (
+                      <div key={index} className="mb-1">{key}</div>
+                    ))}
+                  </code>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
