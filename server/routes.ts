@@ -106,58 +106,6 @@ const verifyToken = async (req: AuthRequest, res: Response, next: NextFunction) 
       const email = decodedToken.email;
       console.log('User attempting authentication:', email);
       
-      // Special handling for main admin user
-      if (email.toLowerCase() === 'burke.cates@gmail.com') {
-        console.log('Admin user authenticated successfully:', email);
-        
-        // Ensure admin user exists in database with correct privileges
-        let adminUser = await storage.getAllowedUserByEmail(email);
-        
-        if (!adminUser) {
-          // Create admin user if it doesn't exist yet
-          adminUser = await storage.createAllowedUser({
-            email,
-            isAdmin: true
-          });
-          console.log("Created admin user:", adminUser);
-        } else if (!adminUser.isAdmin) {
-          // Ensure admin flag is set
-          adminUser = await storage.updateAllowedUser(adminUser.id, { isAdmin: true });
-          console.log("Updated admin privileges for:", email);
-        }
-        
-        // Always set isAdmin to true for the main admin regardless of database
-        req.user = {
-          id: adminUser?.id || 0,
-          email: email,
-          isAdmin: true,
-          createdAt: adminUser?.createdAt || new Date()
-        };
-        req.token = token;
-        return next();
-      }
-      
-      // Special case for burke@threatmate.com
-      if (email.toLowerCase() === 'burke@threatmate.com') {
-        console.log("Handling special user:", email);
-        
-        // Get or create user
-        let user = await storage.getAllowedUserByEmail(email);
-        
-        if (!user) {
-          // Create if doesn't exist
-          console.log("Creating special user:", email);
-          user = await storage.createAllowedUser({
-            email,
-            isAdmin: false
-          });
-        }
-        
-        req.user = user;
-        req.token = token;
-        return next();
-      }
-      
       // For regular users, check if they're in the allowlist
       const isAllowed = await storage.isUserAllowed(email);
       console.log(`User ${email} allowed status:`, isAllowed);
@@ -429,28 +377,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log("Checking authorization for user:", email);
       
-      // Check if this is the special admin account
-      if (email.toLowerCase() === 'burke.cates@gmail.com') {
-        console.log("Admin user detected on auth check:", email);
-        return res.json({ 
-          allowed: true,
-          isAdmin: true
-        });
-      }
-      
-      // For users like burke@threatmate.com, ensure they exist first
-      // If they don't exist in the database, we need to create them
+      // Get user from database
       let user = await storage.getAllowedUserByEmail(email);
-      
-      if (!user && email.toLowerCase() === 'burke@threatmate.com') {
-        console.log("Creating missing allowed user:", email);
-        // Create this user if it doesn't exist yet
-        user = await storage.createAllowedUser({
-          email,
-          isAdmin: false
-        });
-        console.log("Created missing user:", user);
-      }
       
       const isAllowed = user ? true : await storage.isUserAllowed(email);
       const isAdmin = user ? user.isAdmin : false;

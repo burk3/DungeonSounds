@@ -8,6 +8,7 @@ import {
 import path from "path";
 import { Client } from "@replit/object-storage";
 import { Readable } from "stream";
+import { getUserData, saveUserData, getAllUserKeys, type UserData } from "./storageHelpers";
 import Database from "@replit/database";
 
 // Initialize Replit Object Storage
@@ -25,16 +26,8 @@ interface SoundMetadata {
   uploadedAt: string; // ISO date string
 }
 
-// Define user data structure
-interface UserData {
-  email: string;
-  isAdmin: boolean;
-  createdAt?: string; // ISO date string
-}
-
-// Helper functions for key-value metadata
+// Helper functions for sound metadata
 const getSoundMetadataKey = (filename: string) => `sound:${filename}`;
-const getUserKey = (email: string) => `user:${email.toLowerCase()}`;
 
 async function getSoundMetadata(
   filename: string,
@@ -706,13 +699,7 @@ export class MemStorage implements IStorage {
   async isUserAllowed(email: string): Promise<boolean> {
     if (!email) return false;
 
-    // First check if we have the admin user hardcoded
-    if (email.toLowerCase() === "burke.cates@gmail.com") {
-      console.log("Admin user detected:", email);
-      return true;
-    }
-
-    // Then check if user exists in database
+    // Check if user exists in database
     const userData = await getUserData(email);
     return !!userData;
   }
@@ -720,23 +707,11 @@ export class MemStorage implements IStorage {
   async isUserAdmin(email: string): Promise<boolean> {
     if (!email) return false;
 
-    // First check if we have the admin user hardcoded
-    if (email.toLowerCase() === "burke.cates@gmail.com") {
-      console.log("Admin user detected:", email);
-      // We still need to check the database to be consistent
-    }
-
     // Check if user exists and is admin
     const userData = await getUserData(email);
     
     if (userData && userData.isAdmin) {
       console.log("Admin privileges confirmed for:", email);
-      return true;
-    }
-    
-    // Special case - always grant admin privileges to the main admin
-    if (email.toLowerCase() === "burke.cates@gmail.com") {
-      console.log("Admin privileges granted to hardcoded admin:", email);
       return true;
     }
     
