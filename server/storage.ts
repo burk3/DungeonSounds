@@ -345,13 +345,14 @@ export class MemStorage implements IStorage {
 
       // Handle different response structures to make this more robust
       if (typeof uploadResult === 'object' && uploadResult !== null) {
-        if ('ok' in uploadResult && !uploadResult.ok) {
+        const result = uploadResult as any;
+        if (result.ok === false) {
           console.error(
             `Failed to upload file: ${filename}`,
-            'error' in uploadResult ? uploadResult.error : 'Unknown error'
+            result.error || 'Unknown error'
           );
           throw new Error(
-            `Failed to upload file: ${'error' in uploadResult ? uploadResult.error : 'Unknown error'}`
+            `Failed to upload file: ${result.error || 'Unknown error'}`
           );
         }
       }

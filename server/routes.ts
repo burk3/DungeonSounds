@@ -23,6 +23,9 @@ import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 // No longer using firebase-admin due to initialization issues
 
+// Define the same bucket name used in storage.ts
+const BUCKET_NAME = "sounds";
+
 // Firebase Admin setup
 // Note: We won't use admin SDK for token verification in this implementation
 // Since we're having issues with the admin SDK initialization
