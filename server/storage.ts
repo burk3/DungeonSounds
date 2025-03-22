@@ -62,8 +62,20 @@ async function saveSoundMetadata(filename: string, metadata: SoundMetadata): Pro
 
 async function deleteSoundMetadata(filename: string): Promise<void> {
   try {
-    const key = getSoundMetadataKey(filename);
+    // Remove any sounds/ prefix if it exists
+    const cleanFilename = filename.replace(/^sounds\//, '');
+    const key = getSoundMetadataKey(cleanFilename);
     await db.delete(key);
+    
+    // Also try to delete with prefix (for legacy files)
+    if (cleanFilename !== filename) {
+      const legacyKey = getSoundMetadataKey(filename);
+      try {
+        await db.delete(legacyKey);
+      } catch (legacyError) {
+        // Ignore errors for legacy key
+      }
+    }
   } catch (error) {
     console.error(`Error deleting metadata for ${filename}:`, error);
   }
@@ -240,31 +252,51 @@ export class MemStorage implements IStorage {
     try {
       // Delete from object storage if we have a filename
       if (sound.filename) {
-        // Include the bucket name as a prefix to the filename
-        const objectKey = `${BUCKET_NAME}/${sound.filename}`;
+        // Get clean filename (remove any directory prefix)
+        const cleanFilename = sound.filename.replace(/^sounds\//, '');
+        let deleteSuccess = false;
         
-        const deleteResult = await objectStorage.delete(objectKey);
-
-        if (!deleteResult.ok) {
-          console.error(
-            `Failed to delete sound file from storage: ${objectKey}`,
-            deleteResult.error,
-          );
-          // Continue with removal from in-memory collection even if bucket deletion fails
-        } else {
-          console.log(`Deleted sound file from storage: ${objectKey}`);
-          
-          // Also delete metadata from database
-          await deleteSoundMetadata(sound.filename);
-          console.log(`Deleted metadata for: ${sound.filename}`);
+        // Try to delete without prefix first
+        try {
+          const deleteResult = await objectStorage.delete(cleanFilename);
+          if (deleteResult.ok) {
+            console.log(`Deleted sound file from storage: ${cleanFilename}`);
+            deleteSuccess = true;
+          }
+        } catch (error) {
+          console.log(`File not found at path: ${cleanFilename}, trying with prefix...`);
         }
+        
+        // If direct deletion failed, try with the sounds/ prefix
+        if (!deleteSuccess) {
+          try {
+            const prefixedKey = `sounds/${cleanFilename}`;
+            const deleteResult = await objectStorage.delete(prefixedKey);
+            if (deleteResult.ok) {
+              console.log(`Deleted sound file from storage: ${prefixedKey}`);
+              deleteSuccess = true;
+            } else {
+              console.error(
+                `Failed to delete sound file from storage: ${prefixedKey}`,
+                deleteResult.error,
+              );
+            }
+          } catch (error) {
+            console.error(`Error deleting with prefix: ${error}`);
+          }
+        }
+        
+        // Always delete the metadata
+        await deleteSoundMetadata(cleanFilename);
+        console.log(`Deleted metadata for: ${cleanFilename}`);
       }
 
-      // Remove from in-memory collection
+      // Remove from in-memory collection regardless of storage deletion result
       return this.sounds.delete(id);
     } catch (error) {
       console.error(`Error deleting sound file: ${sound.filename}`, error);
-      return false;
+      // Still remove from in-memory collection even if storage delete fails
+      return this.sounds.delete(id);
     }
   }
 
@@ -327,12 +359,12 @@ export class MemStorage implements IStorage {
   }
 
   // File operations
-  async saveFile(buffer: Buffer, originalname: string, uploader: string | null = null): Promise<string> {
-    const ext = path.extname(originalname);
-
-    // Use provided name (from form title field) as the filename instead of a UUID
+  async saveFile(buffer: Buffer, title: string, uploader: string | null = null): Promise<string> {
+    const ext = path.extname(title);
+    
+    // Use title as the filename (this should already include the extension from the original file)
     // The file is stored as "Title.mp3" in the bucket
-    const filename = originalname;
+    const filename = title;
 
     // Create a readable stream from the buffer
     const readableStream = new Readable();
@@ -340,12 +372,10 @@ export class MemStorage implements IStorage {
     readableStream.push(null);
 
     try {
-      // Upload the file to Object Storage
-      // Include the bucket name as a prefix to the filename (this is a common pattern)
-      const objectKey = `${BUCKET_NAME}/${filename}`;
-      
+      // Upload the file to Object Storage without the "sounds/" directory prefix
+      // The bucket name is correctly set in the Client initialization
       const uploadResult = await objectStorage.uploadFromStream(
-        objectKey,
+        filename,
         readableStream
       );
 
@@ -383,8 +413,10 @@ export class MemStorage implements IStorage {
   }
 
   getFilePath(filename: string): string {
-    // This now returns a URL path for the API endpoint that will stream the file
-    return `/api/audio/${encodeURIComponent(filename)}`;
+    // Remove any 'sounds/' prefix if it exists
+    const cleanFilename = filename.startsWith('sounds/') ? filename.substring(7) : filename;
+    // This returns a URL path for the API endpoint that will stream the file
+    return `/api/audio/${encodeURIComponent(cleanFilename)}`;
   }
 
   getObjectStorage() {

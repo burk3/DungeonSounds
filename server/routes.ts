@@ -564,19 +564,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'No file uploaded' });
       }
       
-      const { name, category, uploader } = req.body;
+      const { name, category } = req.body;
+      // Get file extension from original uploaded file
+      const fileExt = path.extname(req.file.originalname);
+      // Use requested title as filename - add extension if not present
+      const hasExtension = name.toLowerCase().endsWith(fileExt.toLowerCase());
+      const fullTitle = hasExtension ? name : name + fileExt;
       
       try {
         // Validate the input
         const parsedData = insertSoundSchema.parse({
           name,
           category,
-          uploader: uploader || 'Anonymous',
+          uploader: req.user?.email || null, // Use the actual user email
           filename: ''  // Will be set after file is saved
         });
         
-        // Save the file
-        const filename = await storage.saveFile(req.file.buffer, req.file.originalname);
+        // Save the file using the title as the filename
+        const filename = await storage.saveFile(req.file.buffer, fullTitle, req.user?.email);
         
         // Create the sound entry
         const sound = await storage.createSound({
@@ -688,19 +693,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Serve audio files - public access for playback
   app.get('/api/audio/:filename', async (req, res) => {
     try {
-      const filename = req.params.filename;
+      // Get clean filename without any path prefix
+      const filename = req.params.filename.replace(/^sounds\//, '');
       const objectStorage = storage.getObjectStorage();
       
-      // Create the full object key with the bucket prefix
-      const objectKey = `${BUCKET_NAME}/${filename}`;
+      // Try multiple options to find the file
+      // First try without any prefix
+      let fileExists = false;
+      let actualKey = filename;
       
-      // Check if file exists in object storage by attempting to get info
-      // The exists method returns a Result<boolean>
-      const existsResult = await objectStorage.exists(objectKey);
+      // Check if file exists in object storage directly
+      let existsResult = await objectStorage.exists(filename);
+      fileExists = existsResult.ok && existsResult.value;
       
-      if (!existsResult.ok || !existsResult.value) {
+      // If not found, try with "sounds/" prefix (for legacy files)
+      if (!fileExists) {
+        const fallbackKey = `sounds/${filename}`;
+        existsResult = await objectStorage.exists(fallbackKey);
+        if (existsResult.ok && existsResult.value) {
+          fileExists = true;
+          actualKey = fallbackKey;
+        }
+      }
+      
+      if (!fileExists) {
+        console.log(`Audio file not found: Tried ${filename} and sounds/${filename}`);
         return res.status(404).json({ message: 'Audio file not found' });
       }
+      
+      // Log the actual key being used
+      console.log(`Serving audio file from key: ${actualKey}`);
       
       // Set appropriate Content-Type based on file extension
       const ext = path.extname(filename).toLowerCase();
@@ -714,13 +736,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.set('Content-Type', contentType);
       
       try {
-        // Get a readable stream from the object storage
-        const stream = await objectStorage.downloadAsStream(objectKey);
+        // Get a readable stream from the object storage using the actual key
+        const stream = await objectStorage.downloadAsStream(actualKey);
         
         // Pipe the stream to the response
         stream.pipe(res);
       } catch (streamErr) {
-        console.error('Error streaming audio file:', streamErr);
+        console.error(`Error streaming audio file: ${actualKey}`, streamErr);
         return res.status(500).json({ message: 'Failed to stream audio file' });
       }
     } catch (err) {
