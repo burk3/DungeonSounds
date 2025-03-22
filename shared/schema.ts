@@ -30,7 +30,7 @@ export const insertSoundSchema = z.object({
   name: z.string().min(1),
   filename: z.string().min(1),
   category: z.enum(SOUND_CATEGORIES),
-  uploader: z.string().nullable().optional(),
+  uploader: z.string().nullable(),
 });
 
 export type InsertSound = z.infer<typeof insertSoundSchema>;
