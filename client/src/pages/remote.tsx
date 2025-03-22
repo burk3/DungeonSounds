@@ -22,15 +22,15 @@ export default function Remote() {
   return (
     <div className="w-full min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-primary text-white shadow-md">
-        <div className="container mx-auto px-4 py-4">
+      <header className="bg-gradient-to-r from-purple-800 to-purple-600 text-white shadow-lg">
+        <div className="container mx-auto px-4 py-5">
           <div className="flex justify-between items-center">
             <div className="flex items-center">
-              <span className="material-icons text-3xl mr-2">equalizer</span>
+              <span className="material-icons text-3xl mr-3 text-amber-300">equalizer</span>
               <h1 className="font-heading text-2xl font-bold">D&D Soundboard: Remote</h1>
             </div>
             <div className="flex items-center">
-              <div className="bg-white/20 rounded-full px-4 py-2 flex items-center">
+              <div className={`${connected ? 'bg-green-600/40' : 'bg-red-600/40'} rounded-full px-4 py-2 flex items-center transition-colors`}>
                 <span className="material-icons mr-2">
                   {connected ? "wifi" : "wifi_off"}
                 </span>
@@ -73,7 +73,7 @@ export default function Remote() {
         {/* Upload Button */}
         <div className="mb-6">
           <button
-            className="bg-accent hover:bg-accent/90 text-white py-3 px-6 rounded-lg shadow-md w-full flex items-center justify-center"
+            className="bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg shadow-md w-full flex items-center justify-center font-medium"
             onClick={() => setIsUploadModalOpen(true)}
           >
             <span className="material-icons mr-2">file_upload</span>

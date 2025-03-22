@@ -34,14 +34,14 @@ export default function Playback() {
   return (
     <div className="w-full min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="bg-primary text-white shadow-md">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="bg-gradient-to-r from-purple-800 to-purple-600 text-white shadow-lg">
+        <div className="container mx-auto px-4 py-5 flex justify-between items-center">
           <div className="flex items-center">
-            <span className="material-icons text-3xl mr-2">equalizer</span>
+            <span className="material-icons text-3xl mr-3 text-amber-300">equalizer</span>
             <h1 className="font-heading text-2xl font-bold">D&D Soundboard: Playback</h1>
           </div>
           <div className="flex items-center">
-            <div className="bg-white/20 rounded-full px-4 py-2 flex items-center">
+            <div className={`${connected ? 'bg-green-600/40' : 'bg-red-600/40'} rounded-full px-4 py-2 flex items-center transition-colors`}>
               <span className="material-icons mr-2">
                 {connected ? "wifi" : "wifi_off"}
               </span>
@@ -109,9 +109,10 @@ export default function Playback() {
       </main>
       
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-4">
+      <footer className="bg-gray-900 text-white py-5 border-t-2 border-amber-500/30">
         <div className="container mx-auto px-4 text-center">
-          <p>Access the remote control at: <span className="font-medium">{window.location.origin}/remote</span></p>
+          <p className="mb-1 text-amber-200">Share this link with your party:</p>
+          <p className="font-medium text-lg bg-gray-800/50 py-2 px-4 rounded-md inline-block">{window.location.origin}/remote</p>
         </div>
       </footer>
     </div>
