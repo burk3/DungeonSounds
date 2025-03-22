@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { Sound } from "@shared/schema";
+import { Sound } from "@shared/types";
 import { useWebSocket } from "@/lib/websocket";
 import { useSound } from "@/lib/useSound";
 import NowPlaying from "@/components/now-playing";

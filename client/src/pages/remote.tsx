@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Sound } from "@shared/schema";
+import { Sound } from "@shared/types";
 import { useWebSocket } from "@/lib/websocket";
 import RemoteSoundCard from "@/components/remote-sound-card";
 import UploadModal from "@/components/upload-modal";

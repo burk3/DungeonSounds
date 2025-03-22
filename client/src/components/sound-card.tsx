@@ -1,4 +1,4 @@
-import { Sound } from "@shared/schema";
+import { Sound } from "@shared/types";
 import { formatDistanceToNow } from "date-fns";
 import { useWebSocket } from "@/lib/websocket";
 
@@ -48,8 +48,9 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
           </p>
         </div>
         <div className="flex space-x-2">
+          {/* Duration is not currently available in our Sound type */}
           <span className="inline-block bg-gray-800 text-amber-200 text-xs px-2 py-1 rounded">
-            {formatDuration(sound.duration || 0)}
+            Sound Effect
           </span>
         </div>
       </div>

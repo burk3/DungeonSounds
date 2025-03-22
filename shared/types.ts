@@ -36,7 +36,7 @@ export interface Sound {
   filename: string;
   category: string;
   uploader: string | null;
-  uploadedAt: Date;
+  uploadedAt: Date | null;
 }
 
 export interface InsertSound {
