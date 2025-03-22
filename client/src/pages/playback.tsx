@@ -6,6 +6,7 @@ import { useSound } from "@/lib/useSound";
 import NowPlaying from "@/components/now-playing";
 import SoundCard from "@/components/sound-card";
 import Header from "@/components/header";
+import { auth } from "@/lib/firebase";
 
 export default function Playback() {
   const { connected, currentSound, volume, stopSound, sendMessage } = useWebSocket();
@@ -28,26 +29,63 @@ export default function Playback() {
   useEffect(() => {
     let endedHandler: (() => void) | null = null;
     
-    const setupAudio = () => {
+    const setupAudio = async () => {
       if (currentSound) {
-        // Play the sound through our main player
-        play(`/api/audio/${currentSound.filename}`, volume / 100);
-        
-        // Create a separate audio element to monitor when the sound finishes
-        const audio = new Audio(`/api/audio/${currentSound.filename}`);
-        audioElementRef.current = audio;
-        
-        // Set up event listener for when audio finishes
-        endedHandler = () => {
-          console.log("Sound finished playing naturally");
-          stopSound(); // Send stop message to all clients
-        };
-        
-        audio.addEventListener('ended', endedHandler);
-        
-        // Start playing to track the duration (muted to avoid double playback)
-        audio.volume = 0;
-        audio.play().catch(err => console.error("Error tracking audio duration:", err));
+        try {
+          // Play the sound through our main player
+          play(`/api/audio/${currentSound.filename}`, volume / 100);
+          
+          // Get the auth token for the tracking audio element
+          const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+          
+          // Create a separate audio element to monitor when the sound finishes
+          const audio = new Audio();
+          audioElementRef.current = audio;
+          
+          // Set up event listener for when audio finishes
+          endedHandler = () => {
+            console.log("Sound finished playing naturally");
+            stopSound(); // Send stop message to all clients
+          };
+          
+          audio.addEventListener('ended', endedHandler);
+          
+          // Start playing to track the duration (muted to avoid double playback)
+          audio.volume = 0;
+          
+          // Add auth headers for the fetch request if token is available
+          if (token) {
+            // Set up fetch interceptor for audio file
+            const originalFetch = window.fetch;
+            const audioUrl = `/api/audio/${currentSound.filename}`;
+            
+            window.fetch = function(input, init) {
+              if (input && typeof input === 'string' && input.includes(audioUrl)) {
+                init = init || {};
+                init.headers = {
+                  ...init.headers,
+                  'Authorization': `Bearer ${token}`
+                };
+              }
+              return originalFetch(input, init);
+            };
+            
+            // Set audio source and attempt to play
+            audio.src = audioUrl;
+            audio.play().catch(err => console.error("Error tracking audio duration:", err));
+            
+            // Restore original fetch after a delay
+            setTimeout(() => {
+              window.fetch = originalFetch;
+            }, 3000);
+          } else {
+            // Fall back to no auth if token not available
+            audio.src = `/api/audio/${currentSound.filename}`;
+            audio.play().catch(err => console.error("Error tracking audio duration:", err));
+          }
+        } catch (err) {
+          console.error("Error setting up tracking audio:", err);
+        }
       } else {
         stop();
         cleanupAudio();

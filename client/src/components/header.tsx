@@ -35,14 +35,14 @@ export default function Header() {
           
           <nav className="hidden space-x-2 sm:flex">
             <Link href="/playback">
-              <a className={`rounded-md px-3 py-1 ${isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+              <div className={`rounded-md px-3 py-1 cursor-pointer ${isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
                 Playback
-              </a>
+              </div>
             </Link>
             <Link href="/remote">
-              <a className={`rounded-md px-3 py-1 ${!isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+              <div className={`rounded-md px-3 py-1 cursor-pointer ${!isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
                 Remote
-              </a>
+              </div>
             </Link>
           </nav>
         </div>
@@ -92,14 +92,14 @@ export default function Header() {
       <div className="mt-2 flex sm:hidden">
         <nav className="flex w-full justify-center space-x-2">
           <Link href="/playback">
-            <a className={`flex-1 rounded-md px-3 py-1 text-center ${isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+            <div className={`flex-1 rounded-md px-3 py-1 text-center cursor-pointer ${isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
               Playback
-            </a>
+            </div>
           </Link>
           <Link href="/remote">
-            <a className={`flex-1 rounded-md px-3 py-1 text-center ${!isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
+            <div className={`flex-1 rounded-md px-3 py-1 text-center cursor-pointer ${!isPlayback ? 'bg-amber-800 text-amber-100' : 'hover:bg-amber-900 hover:text-amber-200'}`}>
               Remote
-            </a>
+            </div>
           </Link>
         </nav>
       </div>
