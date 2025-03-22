@@ -41,7 +41,7 @@ export default function Remote() {
       </header>
       
       {/* Status Bar for showing what's playing - always visible */}
-      <div className="bg-stone-900 text-amber-100 p-3 shadow-md border-b border-amber-800/40 h-12 flex items-center">
+      <div className="bg-stone-900 text-amber-100 p-3 shadow-md border-b border-amber-800/40 min-h-[72px] flex items-center">
         <div className="container mx-auto flex items-center">
           {currentSound ? (
             <>
