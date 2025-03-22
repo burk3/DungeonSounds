@@ -13,7 +13,10 @@ import {
   insertSoundSchema,
   insertAllowedUserSchema,
   UserRole,
-  AllowedUser
+  AllowedUser,
+  InviteRequestPayload,
+  InviteResponsePayload,
+  ValidateInviteCodeResponse
 } from "@shared/schema";
 import multer from "multer";
 import path from "path";
@@ -474,6 +477,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (err) {
       console.error('Error updating allowed user:', err);
       res.status(500).json({ message: 'Error updating allowed user' });
+    }
+  });
+  
+  // Invite code routes
+  
+  // Generate a new invite code (admin only)
+  app.post('/api/admin/invite-codes', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      
+      const code = await storage.createInviteCode(req.user.email);
+      
+      // Create invite URL with the generated code
+      // Use the host from the request to make it work in different environments
+      const host = req.get('host') || '';
+      const protocol = req.protocol || 'http';
+      const inviteUrl = `${protocol}://${host}/invite/${code}`;
+      
+      const response: InviteResponsePayload = {
+        code,
+        inviteUrl
+      };
+      
+      res.status(201).json(response);
+    } catch (err) {
+      console.error('Error generating invite code:', err);
+      res.status(500).json({ message: 'Error generating invite code' });
+    }
+  });
+  
+  // Get all invite codes (admin only)
+  app.get('/api/admin/invite-codes', verifyToken, requireAdmin, async (req, res) => {
+    try {
+      const codes = await storage.getInviteCodes();
+      res.json(codes);
+    } catch (err) {
+      console.error('Error fetching invite codes:', err);
+      res.status(500).json({ message: 'Error fetching invite codes' });
+    }
+  });
+  
+  // Validate an invite code (public)
+  app.get('/api/invite/:code/validate', async (req, res) => {
+    try {
+      const { code } = req.params;
+      
+      if (!code) {
+        return res.status(400).json({ 
+          valid: false,
+          message: 'Invalid invite code' 
+        });
+      }
+      
+      const isValid = await storage.validateInviteCode(code);
+      
+      const response: ValidateInviteCodeResponse = {
+        valid: isValid,
+        message: isValid ? 'Valid invite code' : 'Invalid or expired invite code'
+      };
+      
+      res.json(response);
+    } catch (err) {
+      console.error('Error validating invite code:', err);
+      res.status(500).json({ 
+        valid: false,
+        message: 'Server error validating invite code' 
+      });
+    }
+  });
+  
+  // Redeem an invite code and create a user
+  app.post('/api/invite/:code/redeem', async (req, res) => {
+    try {
+      const { code } = req.params;
+      const { email, displayName, uid } = req.body;
+      
+      if (!code || !email || !uid) {
+        return res.status(400).json({ 
+          message: 'Invite code, email and uid are required' 
+        });
+      }
+      
+      // Validate the invite code
+      const isValid = await storage.validateInviteCode(code);
+      
+      if (!isValid) {
+        return res.status(400).json({ 
+          message: 'Invalid or expired invite code' 
+        });
+      }
+      
+      // Check if user already exists
+      const existingUser = await storage.getAllowedUserByEmail(email);
+      
+      if (existingUser) {
+        return res.status(409).json({ 
+          message: 'User with this email already exists' 
+        });
+      }
+      
+      // Create the user
+      try {
+        const newUser = await storage.createAllowedUser({
+          email,
+          displayName: displayName || null,
+          isAdmin: false, // New users are never admins by default
+          uid
+        });
+        
+        // Redeem the invite code (delete it)
+        await storage.redeemInviteCode(code);
+        
+        res.status(201).json(newUser);
+      } catch (error) {
+        console.error('Error creating user from invite:', error);
+        return res.status(400).json({ 
+          message: 'Error creating user from invite' 
+        });
+      }
+    } catch (err) {
+      console.error('Error redeeming invite code:', err);
+      res.status(500).json({ 
+        message: 'Server error redeeming invite code' 
+      });
     }
   });
   

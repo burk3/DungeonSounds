@@ -175,9 +175,12 @@ async function getAllInviteCodes(): Promise<InviteCode[]> {
     const inviteCodes: InviteCode[] = [];
     
     for (const key of Object.keys(keys)) {
-      const inviteData = await db.get(key);
-      if (inviteData && typeof inviteData === 'object') {
-        inviteCodes.push(inviteData as InviteCode);
+      const rawInviteData = await db.get(key);
+      if (rawInviteData && typeof rawInviteData === 'object' && 
+          'code' in rawInviteData && 
+          'createdBy' in rawInviteData && 
+          'createdAt' in rawInviteData) {
+        inviteCodes.push(rawInviteData as InviteCode);
       }
     }
     
@@ -843,6 +846,29 @@ export class MemStorage implements IStorage {
   getObjectStorage() {
     // Return the Replit Object Storage client
     return objectStorage;
+  }
+  
+  // Invite code operations
+  async createInviteCode(adminEmail: string): Promise<string> {
+    return generateInviteCode(adminEmail);
+  }
+  
+  async validateInviteCode(code: string): Promise<boolean> {
+    return validateInviteCode(code);
+  }
+  
+  async redeemInviteCode(code: string): Promise<boolean> {
+    const isValid = await validateInviteCode(code);
+    if (!isValid) {
+      return false;
+    }
+    
+    // Delete the invite code after it's been used
+    return deleteInviteCode(code);
+  }
+  
+  async getInviteCodes(): Promise<InviteCode[]> {
+    return getAllInviteCodes();
   }
 }
 
