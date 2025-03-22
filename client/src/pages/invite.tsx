@@ -37,6 +37,14 @@ export default function InvitePage({ code }: InvitePageProps) {
       return;
     }
     
+    // Check if code is valid
+    if (!code || code.length < 6) {
+      setIsValid(false);
+      setMessage("Invalid invite code format");
+      setIsValidating(false);
+      return;
+    }
+    
     // Validate the invite code
     async function validateCode() {
       try {
@@ -51,10 +59,10 @@ export default function InvitePage({ code }: InvitePageProps) {
         if (response.message) {
           setMessage(response.message);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error validating invite code:", error);
         setIsValid(false);
-        setMessage("Failed to validate invite code. Please try again later.");
+        setMessage(error?.message || "Failed to validate invite code. Please try again later.");
       } finally {
         setIsValidating(false);
       }
@@ -65,33 +73,55 @@ export default function InvitePage({ code }: InvitePageProps) {
   
   const handleRedeem = async () => {
     try {
+      // Get user info from localStorage
+      const email = window.localStorage.getItem('userEmail');
+      const displayName = window.localStorage.getItem('userName');
+      const uid = window.localStorage.getItem('userUid');
+      
+      // Check if we have necessary user data
+      if (!email || !uid) {
+        toast({
+          title: "Error",
+          description: "You need to sign in first to redeem this invite code.",
+          variant: "destructive",
+        });
+        
+        setTimeout(() => {
+          navigate("/remote"); // Go to login page
+        }, 2000);
+        
+        return;
+      }
+      
       setIsValidating(true);
       
-      await apiRequest({
+      const response = await apiRequest({
         url: `/api/invite/${code}/redeem`,
         method: "POST",
         body: {
-          email: window.localStorage.getItem('userEmail') || '',
-          displayName: window.localStorage.getItem('userName') || '',
-          uid: window.localStorage.getItem('userUid') || ''
+          email,
+          displayName: displayName || '',
+          uid
         }
       });
       
       toast({
         title: "Success!",
-        description: "Your invite code has been redeemed. Please log in to continue.",
+        description: "Your invite code has been redeemed. You now have access to the sound board.",
         variant: "default",
       });
       
-      // Redirect to remote (login)
+      // Redirect to remote
       setTimeout(() => {
         navigate("/remote");
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error redeeming invite code:", error);
+      const errorMessage = error?.message || "Failed to redeem invite code. Please try again later.";
+      
       toast({
         title: "Error",
-        description: "Failed to redeem invite code. Please try again later.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
