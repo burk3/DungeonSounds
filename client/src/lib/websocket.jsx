@@ -127,12 +127,37 @@ function WebSocketProviderComponent({ children }) {
 
   // Send a message to the WebSocket server
   const sendMessage = useCallback((message) => {
-    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
-      socketRef.current.send(JSON.stringify(message));
+    if (socketRef.current) {
+      // Check the readyState
+      const readyState = socketRef.current.readyState;
+      console.log("WebSocket readyState:", readyState);
+      
+      if (readyState === WebSocket.OPEN) {
+        try {
+          const jsonMessage = JSON.stringify(message);
+          console.log("Sending message to server:", jsonMessage);
+          socketRef.current.send(jsonMessage);
+        } catch (error) {
+          console.error("Error serializing or sending WebSocket message:", error);
+          toast({
+            title: "Message Error",
+            description: "Failed to send message to server: " + error.message,
+            variant: "destructive",
+          });
+        }
+      } else {
+        console.error("Cannot send message, socket not in OPEN state:", readyState);
+        toast({
+          title: "Not Connected",
+          description: "Cannot send message: WebSocket not in OPEN state",
+          variant: "destructive",
+        });
+      }
     } else {
+      console.error("WebSocket reference is null");
       toast({
         title: "Not Connected",
-        description: "Cannot send message: not connected to server",
+        description: "Cannot send message: no WebSocket connection",
         variant: "destructive",
       });
     }
@@ -140,10 +165,17 @@ function WebSocketProviderComponent({ children }) {
 
   // Helper for playing a sound
   const playSound = useCallback((soundId) => {
-    sendMessage({
-      type: "play",
-      data: { soundId }
-    });
+    console.log("Attempting to play sound ID:", soundId);
+    try {
+      const message = {
+        type: "play",
+        data: { soundId }
+      };
+      console.log("Sending WebSocket message:", message);
+      sendMessage(message);
+    } catch (error) {
+      console.error("Error in playSound function:", error);
+    }
   }, [sendMessage]);
 
   // Helper for stopping sound
