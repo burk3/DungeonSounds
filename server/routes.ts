@@ -549,6 +549,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Validate an invite code
+  app.get('/api/invite/:code/validate', async (req, res) => {
+    try {
+      const { code } = req.params;
+      
+      if (!code) {
+        return res.status(400).json({ 
+          valid: false,
+          message: 'Invite code is required' 
+        });
+      }
+      
+      // Validate the invite code
+      const isValid = await storage.validateInviteCode(code);
+      
+      const response: ValidateInviteCodeResponse = {
+        valid: isValid,
+        message: isValid ? 'Invite code is valid' : 'Invalid or expired invite code'
+      };
+      
+      return res.json(response);
+    } catch (error) {
+      console.error('Error validating invite code:', error);
+      return res.status(500).json({ 
+        valid: false,
+        message: 'Error validating invite code' 
+      });
+    }
+  });
+  
   // Redeem an invite code and create a user
   app.post('/api/invite/:code/redeem', async (req, res) => {
     try {

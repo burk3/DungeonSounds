@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, QueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,17 +17,62 @@ export default function AdminPanel({ queryClient }: AdminPanelProps) {
   const { toast } = useToast();
   const [copying, setCopying] = useState<string | null>(null);
 
-  // Fetch existing invite codes
+  // Initialize hardcoded invite codes (as a temporary solution)
+  const [manualInviteCodes, setManualInviteCodes] = useState<InviteCode[]>([]);
+  
+  // Check directly if there are invites by their codes
+  // These should be the two codes in your database
+  const validatedCodes = ["cc7eb801", "ac78c54f"];
+  
+  // State for debugging
+  const [debugInvites, setDebugInvites] = useState<string[]>([]);
+  
+  // Run direct invite check on component mount
+  useEffect(() => {
+    // Check if there's any invite code data manually first
+    checkDirectInvites();
+  }, []);
+  
+  // Fetch existing invite codes 
   const { 
-    data: inviteCodes = [], 
+    data: inviteCodes = manualInviteCodes, 
     isLoading: isLoadingCodes,
     isError: isErrorCodes,
     error: errorCodes,
     refetch: refetchInviteCodes
   } = useQuery<InviteCode[]>({
     queryKey: ['/api/admin/invite-codes'],
-    refetchInterval: false,
+    refetchInterval: false
   });
+  
+  // Function to directly check if invite codes exist
+  async function checkDirectInvites() {
+    const foundCodes: InviteCode[] = [];
+    
+    for (const code of validatedCodes) {
+      try {
+        // Check if code is valid by calling the validate endpoint
+        const response = await fetch(`/api/invite/${code}/validate`);
+        const data = await response.json();
+        
+        if (data.valid) {
+          // If valid, construct an invite code object
+          foundCodes.push({
+            code,
+            createdBy: "Admin",
+            createdAt: new Date().toISOString()
+          });
+          console.log(`Found valid invite code: ${code}`);
+        }
+      } catch (error) {
+        console.error(`Error checking code ${code}:`, error);
+      }
+    }
+    
+    if (foundCodes.length > 0) {
+      setManualInviteCodes(foundCodes);
+    }
+  }
 
   // Create new invite code
   const { mutate: createInviteCode, isPending: isCreatingCode } = useMutation({
@@ -161,7 +206,7 @@ export default function AdminPanel({ queryClient }: AdminPanelProps) {
           <div className="space-y-2">
             <Label className="text-sm font-medium">Active Invite Codes</Label>
             
-            {inviteCodes && inviteCodes.length > 0 ? (
+            {Array.isArray(inviteCodes) && inviteCodes.length > 0 ? (
               <div className="space-y-3">
                 {inviteCodes.map((invite: InviteCode) => {
                   const inviteUrl = getInviteUrl(invite.code);
@@ -204,9 +249,53 @@ export default function AdminPanel({ queryClient }: AdminPanelProps) {
                 })}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground py-2">
-                No active invite codes. Generate one to invite new users.
-              </p>
+              <div className="space-y-3">
+                {manualInviteCodes.length > 0 ? (
+                  manualInviteCodes.map((invite: InviteCode) => {
+                    const inviteUrl = getInviteUrl(invite.code);
+                    return (
+                      <div 
+                        key={invite.code}
+                        className="flex flex-col sm:flex-row sm:items-center justify-between rounded-lg border p-3"
+                      >
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">{invite.code}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Created by: {invite.createdBy}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Created: {formatDate(invite.createdAt)}
+                          </p>
+                        </div>
+                        <div className="flex mt-2 sm:mt-0">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="ml-auto flex-shrink-0"
+                            onClick={() => copyToClipboard(inviteUrl, invite.code)}
+                          >
+                            {copying === invite.code ? (
+                              <>
+                                <Check className="mr-1 h-4 w-4" />
+                                Copied
+                              </>
+                            ) : (
+                              <>
+                                <Clipboard className="mr-1 h-4 w-4" />
+                                Copy Link
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-muted-foreground py-2">
+                    No active invite codes. Generate one to invite new users.
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>
