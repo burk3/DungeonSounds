@@ -171,19 +171,51 @@ async function deleteInviteCode(code: string): Promise<boolean> {
 
 async function getAllInviteCodes(): Promise<InviteCode[]> {
   try {
-    const keys = await db.list("invite:");
+    const prefix = "invite:";
+    const keys = await db.list(prefix);
     const inviteCodes: InviteCode[] = [];
     
-    for (const key of Object.keys(keys)) {
-      const rawInviteData = await db.get(key);
-      if (rawInviteData && typeof rawInviteData === 'object' && 
-          'code' in rawInviteData && 
-          'createdBy' in rawInviteData && 
-          'createdAt' in rawInviteData) {
-        inviteCodes.push(rawInviteData as InviteCode);
+    console.log("Retrieved invite code keys:", Object.keys(keys));
+    
+    for (const fullKey of Object.keys(keys)) {
+      const code = fullKey.substring(prefix.length); // Remove the prefix to get just the code
+      console.log(`Getting invite code data for: ${code}`);
+      
+      const rawInviteData = await db.get(fullKey);
+      
+      if (rawInviteData) {
+        // Parse string data if needed
+        let parsedData = rawInviteData;
+        if (typeof rawInviteData === 'string') {
+          try {
+            parsedData = JSON.parse(rawInviteData);
+          } catch (e) {
+            console.warn(`Failed to parse invite data for ${code}`);
+          }
+        }
+        
+        // Verify it has the expected structure
+        if (typeof parsedData === 'object' &&
+            ('code' in parsedData || // Use existing code in data or the key 
+             'createdBy' in parsedData && 
+             'createdAt' in parsedData)) {
+          
+          // Ensure the code property is set correctly
+          const inviteCode: InviteCode = {
+            code: parsedData.code || code,
+            createdBy: parsedData.createdBy,
+            createdAt: parsedData.createdAt
+          };
+          
+          inviteCodes.push(inviteCode);
+          console.log(`Added invite code to list: ${inviteCode.code}`);
+        } else {
+          console.warn(`Invalid invite code data format for ${code}:`, parsedData);
+        }
       }
     }
     
+    console.log(`Found ${inviteCodes.length} invite codes`);
     return inviteCodes;
   } catch (error) {
     console.error("Error listing invite codes:", error);
