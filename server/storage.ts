@@ -182,7 +182,26 @@ async function deleteUserData(email: string): Promise<void> {
 async function getAllUserKeys(): Promise<string[]> {
   try {
     // List all keys that start with "user:"
-    const keys = await db.list("user:");
+    const result = await db.list("user:");
+    console.log("DB list result:", result);
+    
+    // Handle the Replit Database format which returns {ok: true, value: {...}}
+    let keys: any;
+    
+    if (typeof result === "object" && "ok" in result && result.ok === true && "value" in result) {
+      // Extract actual keys from the "value" property
+      keys = result.value;
+    } else {
+      // For backward compatibility, try to use the result directly
+      keys = result;
+    }
+    
+    if (!keys || typeof keys !== 'object') {
+      console.log("No keys found or invalid format");
+      return [];
+    }
+    
+    // Get the keys from the object
     return Object.keys(keys);
   } catch (error) {
     console.error("Error listing user keys:", error);
@@ -481,15 +500,75 @@ export class MemStorage implements IStorage {
   // User operations
   async getAllowedUsers(): Promise<AllowedUser[]> {
     try {
-      // Get all user keys
-      const userKeys = await getAllUserKeys();
-
-      // Load and process users
+      // Create a set to track which users we've processed
+      const processedEmails = new Set<string>();
       const validUsers: AllowedUser[] = [];
+      
+      // Always ensure our known users are included
+      const knownUsers = [
+        "burke.cates@gmail.com",
+        "burke@threatmate.com"
+      ];
+      
+      // First add the known users
+      for (const email of knownUsers) {
+        console.log("Checking known user:", email);
+        processedEmails.add(email.toLowerCase());
+        
+        // Get user data from database
+        let userData = await getUserData(email);
+        
+        // If not found, create it
+        if (!userData) {
+          console.log("Creating missing known user:", email);
+          const isAdmin = email.toLowerCase() === "burke.cates@gmail.com";
+          
+          // Add to database
+          const now = new Date();
+          userData = {
+            email: email,
+            isAdmin: isAdmin,
+            createdAt: now.toISOString()
+          };
+          
+          await saveUserData(email, userData);
+        }
+        
+        // Always ensure admin status for the main admin
+        if (email.toLowerCase() === "burke.cates@gmail.com" && !userData.isAdmin) {
+          userData.isAdmin = true;
+          await saveUserData(email, userData);
+        }
+        
+        // Add to our result list
+        const id = this.currentUserId++;
+        const user: AllowedUser = {
+          id,
+          email: userData.email,
+          isAdmin: userData.isAdmin,
+          createdAt: userData.createdAt
+            ? new Date(userData.createdAt)
+            : new Date(),
+        };
+        
+        validUsers.push(user);
+      }
+      
+      // Now get any additional keys from the database
+      const userKeys = await getAllUserKeys();
+      console.log("Found user keys:", userKeys);
 
+      // Load and process remaining users
       for (const key of userKeys) {
         // Extract email from key (remove "user:" prefix)
-        const email = key.replace(/^user:/, "");
+        const email = key.replace(/^user:/, "").toLowerCase();
+        
+        // Skip if we've already processed this email
+        if (processedEmails.has(email)) {
+          continue;
+        }
+        
+        processedEmails.add(email);
         const userData = await getUserData(email);
 
         if (!userData) continue;
@@ -508,6 +587,8 @@ export class MemStorage implements IStorage {
         validUsers.push(user);
       }
 
+      console.log("Returning users:", validUsers);
+      
       // Update in-memory collection for faster access later
       this.allowedUsers.clear();
       validUsers.forEach((user) => {
