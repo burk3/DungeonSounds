@@ -43,19 +43,45 @@ async function getSoundMetadata(
     // Try with clean filename (no prefix)
     const cleanFilename = filename.replace(/^sounds\//, "");
     const key = getSoundMetadataKey(cleanFilename);
-    let metadata = await db.get(key);
+    let dbResult = await db.get(key);
+    
+    // Replit Database wraps results in an ok/value structure
+    // First, check if we have a wrapped result and extract the value
+    let metadata = dbResult;
+    if (dbResult && typeof dbResult === 'object' && 'ok' in dbResult && dbResult.ok === true && 'value' in dbResult) {
+      metadata = dbResult.value;
+    }
 
     // If not found and filename was cleaned, try with original filename (might be legacy)
     if (!metadata && cleanFilename !== filename) {
       const originalKey = getSoundMetadataKey(filename);
-      metadata = await db.get(originalKey);
+      dbResult = await db.get(originalKey);
+      
+      // Check for wrapped result again
+      if (dbResult && typeof dbResult === 'object' && 'ok' in dbResult && dbResult.ok === true && 'value' in dbResult) {
+        metadata = dbResult.value;
+      } else {
+        metadata = dbResult;
+      }
 
       if (metadata) {
         console.log(`Found metadata using legacy path: ${filename}`);
       }
     }
 
-    if (!metadata) return null;
+    if (!metadata) {
+      // Create default metadata if none exists
+      const defaultMetadata: SoundMetadata = {
+        uploader: null,
+        uploadedAt: new Date().toISOString()
+      };
+      
+      // Save the default metadata
+      await saveSoundMetadata(cleanFilename, defaultMetadata);
+      console.log(`Created default metadata for ${cleanFilename}`);
+      
+      return defaultMetadata;
+    }
 
     // Verify the returned object has the required properties
     if (
@@ -66,11 +92,30 @@ async function getSoundMetadata(
       return metadata as SoundMetadata;
     }
 
-    console.warn(`Invalid metadata format for ${filename}`);
-    return null;
+    // Create a valid metadata format from whatever we have
+    console.log(`Fixing invalid metadata format for ${filename}`);
+    const fixedMetadata: SoundMetadata = {
+      uploader: typeof metadata === 'object' && metadata && 'uploader' in metadata ? 
+        metadata.uploader : null,
+      uploadedAt: typeof metadata === 'object' && metadata && 'uploadedAt' in metadata ? 
+        metadata.uploadedAt : new Date().toISOString()
+    };
+    
+    // Save the corrected metadata
+    await saveSoundMetadata(cleanFilename, fixedMetadata);
+    console.log(`Fixed metadata for ${cleanFilename}`);
+    
+    return fixedMetadata;
   } catch (error) {
     console.error(`Error getting metadata for ${filename}:`, error);
-    return null;
+    
+    // Return a default metadata on error
+    const defaultMetadata: SoundMetadata = {
+      uploader: null,
+      uploadedAt: new Date().toISOString()
+    };
+    
+    return defaultMetadata;
   }
 }
 
