@@ -70,7 +70,49 @@ export class MemStorage implements IStorage {
 
   // Sound operations
   async getSounds(): Promise<Sound[]> {
-    return Array.from(this.sounds.values());
+    try {
+      // Get list of all files in the bucket
+      const files = await objectStorage.list();
+      
+      // Convert bucket objects to Sound objects
+      const sounds: Sound[] = await Promise.all(
+        files.map(async (file, index) => {
+          // Check if we already have this sound in our collection
+          const existingSound = Array.from(this.sounds.values()).find(
+            s => s.filename === file.name
+          );
+          
+          if (existingSound) {
+            return existingSound;
+          }
+          
+          // Create a new sound entry for this file
+          const id = this.currentSoundId++;
+          const fileNameWithoutExt = path.basename(file.name, path.extname(file.name));
+          
+          const newSound: Sound = {
+            id,
+            title: fileNameWithoutExt,
+            filename: file.name,
+            category: "effects",
+            duration: null, // We don't have duration information from storage
+            uploader: null,
+            uploadedAt: new Date()
+          };
+          
+          // Save in our in-memory collection
+          this.sounds.set(id, newSound);
+          
+          return newSound;
+        })
+      );
+      
+      return sounds;
+    } catch (error) {
+      console.error('Error listing sounds from object storage:', error);
+      // Fallback to in-memory sounds
+      return Array.from(this.sounds.values());
+    }
   }
 
   async getSoundsByCategory(category: SoundCategory): Promise<Sound[]> {
@@ -97,7 +139,24 @@ export class MemStorage implements IStorage {
   }
 
   async deleteSound(id: number): Promise<boolean> {
-    return this.sounds.delete(id);
+    const sound = this.sounds.get(id);
+    if (!sound) {
+      return false;
+    }
+    
+    try {
+      // Delete from object storage if we have a filename
+      if (sound.filename) {
+        await objectStorage.delete(sound.filename);
+        console.log(`Deleted sound file from storage: ${sound.filename}`);
+      }
+      
+      // Remove from in-memory collection
+      return this.sounds.delete(id);
+    } catch (error) {
+      console.error(`Error deleting sound file: ${sound.filename}`, error);
+      return false;
+    }
   }
   
   // User operations
@@ -164,14 +223,15 @@ export class MemStorage implements IStorage {
     readableStream.push(buffer);
     readableStream.push(null);
     
-    // Upload the file to Object Storage
-    const result = await objectStorage.uploadFromStream(filename, readableStream);
-    
-    if (!result.ok) {
-      throw new Error(`Failed to upload file: ${result.error}`);
+    try {
+      // Upload the file to Object Storage - method returns Promise<void> on success
+      await objectStorage.uploadFromStream(filename, readableStream);
+      console.log(`Successfully uploaded file: ${filename} to object storage`);
+      return filename;
+    } catch (error: any) {
+      console.error(`Failed to upload file: ${filename}`, error);
+      throw new Error(`Failed to upload file: ${error?.message || 'Unknown error'}`);
     }
-    
-    return filename;
   }
 
   getFilePath(filename: string): string {
