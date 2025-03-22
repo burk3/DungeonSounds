@@ -6,11 +6,13 @@ import {
   allowedUsers,
   type AllowedUser,
   type InsertAllowedUser,
+  type InviteCode,
 } from "@shared/schema";
 import path from "path";
 import { Client } from "@replit/object-storage";
 import { Readable } from "stream";
 import Database from "@replit/database";
+import crypto from "crypto";
 
 // Initialize Replit Object Storage
 const objectStorage = new Client({
@@ -119,6 +121,73 @@ async function getAllSoundKeys(): Promise<string[]> {
   }
 }
 
+// Invite code helper functions
+const getInviteCodeKey = (code: string) => `invite:${code}`;
+
+async function generateInviteCode(adminEmail: string): Promise<string> {
+  // Generate a random invite code (8 alphanumeric characters)
+  const code = crypto.randomBytes(4).toString('hex');
+  const now = new Date();
+  
+  // Store the invite code in the database
+  const inviteData: InviteCode = {
+    code,
+    createdBy: adminEmail,
+    createdAt: now.toISOString()
+  };
+  
+  try {
+    await db.set(getInviteCodeKey(code), inviteData);
+    console.log(`Created invite code: ${code} by ${adminEmail}`);
+    return code;
+  } catch (error) {
+    console.error(`Error generating invite code: ${error}`);
+    throw new Error('Failed to generate invite code');
+  }
+}
+
+async function validateInviteCode(code: string): Promise<boolean> {
+  try {
+    const key = getInviteCodeKey(code);
+    const inviteData = await db.get(key);
+    return !!inviteData;
+  } catch (error) {
+    console.error(`Error validating invite code: ${error}`);
+    return false;
+  }
+}
+
+async function deleteInviteCode(code: string): Promise<boolean> {
+  try {
+    const key = getInviteCodeKey(code);
+    await db.delete(key);
+    console.log(`Deleted invite code: ${code}`);
+    return true;
+  } catch (error) {
+    console.error(`Error deleting invite code: ${error}`);
+    return false;
+  }
+}
+
+async function getAllInviteCodes(): Promise<InviteCode[]> {
+  try {
+    const keys = await db.list("invite:");
+    const inviteCodes: InviteCode[] = [];
+    
+    for (const key of Object.keys(keys)) {
+      const inviteData = await db.get(key);
+      if (inviteData && typeof inviteData === 'object') {
+        inviteCodes.push(inviteData as InviteCode);
+      }
+    }
+    
+    return inviteCodes;
+  } catch (error) {
+    console.error("Error listing invite codes:", error);
+    return [];
+  }
+}
+
 // User related database functions
 async function saveUserData(email: string, userData: UserData): Promise<void> {
   try {
@@ -196,6 +265,12 @@ export interface IStorage {
   deleteAllowedUser(id: number): Promise<boolean>;
   isUserAllowed(email: string): Promise<boolean>;
   isUserAdmin(email: string): Promise<boolean>;
+
+  // Invite operations
+  createInviteCode(adminEmail: string): Promise<string>;
+  validateInviteCode(code: string): Promise<boolean>;
+  redeemInviteCode(code: string): Promise<boolean>;
+  getInviteCodes(): Promise<InviteCode[]>;
 
   // File operations
   saveFile(buffer: Buffer, originalname: string, uploader?: string | null): Promise<string>;
