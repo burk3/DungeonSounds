@@ -172,7 +172,6 @@ export class MemStorage implements IStorage {
             name: fileNameWithoutExt,
             filename: file.name,
             category: "effects",
-            duration: metadata?.duration || null,
             uploader: metadata?.uploader || null,
             uploadedAt: metadata?.uploadedAt ? new Date(metadata.uploadedAt) : new Date(),
           };
@@ -216,7 +215,6 @@ export class MemStorage implements IStorage {
     const sound: Sound = {
       ...insertSound,
       id,
-      duration: insertSound.duration || null,
       uploader: insertSound.uploader || null,
       uploadedAt: new Date(),
     };
@@ -320,7 +318,7 @@ export class MemStorage implements IStorage {
   }
 
   // File operations
-  async saveFile(buffer: Buffer, originalname: string, uploader: string | null = null, duration: number | null = null): Promise<string> {
+  async saveFile(buffer: Buffer, originalname: string, uploader: string | null = null): Promise<string> {
     const ext = path.extname(originalname);
 
     // Use provided name (from form title field) as the filename instead of a UUID
@@ -359,7 +357,6 @@ export class MemStorage implements IStorage {
       // Save metadata to database
       const metadata: SoundMetadata = {
         uploader,
-        duration,
         uploadedAt: new Date().toISOString()
       };
       
