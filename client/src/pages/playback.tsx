@@ -29,6 +29,22 @@ export default function Playback() {
   useEffect(() => {
     let endedHandler: (() => void) | null = null;
     
+    // Function to clean up audio resources
+    const cleanupAudio = () => {
+      if (audioElementRef.current) {
+        // Remove event listeners
+        if (endedHandler) {
+          audioElementRef.current.removeEventListener('ended', endedHandler);
+        }
+        
+        // Stop and clean up the audio element
+        audioElementRef.current.pause();
+        audioElementRef.current.src = '';
+        audioElementRef.current = null;
+      }
+    };
+    
+    // Set up the audio tracking
     const setupAudio = async () => {
       if (currentSound) {
         try {
@@ -92,20 +108,7 @@ export default function Playback() {
       }
     };
     
-    const cleanupAudio = () => {
-      if (audioElementRef.current) {
-        // Remove event listeners
-        if (endedHandler) {
-          audioElementRef.current.removeEventListener('ended', endedHandler);
-        }
-        
-        // Stop and clean up the audio element
-        audioElementRef.current.pause();
-        audioElementRef.current.src = '';
-        audioElementRef.current = null;
-      }
-    };
-    
+    // Run the setup function
     setupAudio();
     
     // Cleanup function for when component unmounts or when dependencies change
