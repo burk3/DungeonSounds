@@ -486,6 +486,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Check if a sound title already exists
+  app.get('/api/sounds/check-title-exists', verifyToken, async (req: AuthRequest, res) => {
+    try {
+      const { title } = req.query;
+      
+      if (!title || typeof title !== 'string') {
+        return res.status(400).json({ error: "Title parameter is required" });
+      }
+      
+      const exists = await storage.soundTitleExists(title);
+      res.json({ exists });
+    } catch (error) {
+      console.error("Error checking sound title:", error);
+      res.status(500).json({ error: "Failed to check sound title" });
+    }
+  });
+
   // Get sounds by category - public access for playback
   app.get('/api/sounds/category/:category', async (req, res) => {
     try {

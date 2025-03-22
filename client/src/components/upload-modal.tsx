@@ -106,7 +106,21 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
   // Check if sound title already exists
   const checkTitleExists = async (title: string): Promise<boolean> => {
     try {
-      const response = await fetch(`/api/sounds/check-title-exists?title=${encodeURIComponent(title)}`);
+      // Get token for authorization
+      if (!user) return false;
+      
+      const token = await user.getIdToken();
+      
+      const response = await fetch(`/api/sounds/check-title-exists?title=${encodeURIComponent(title)}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+      
       const data = await response.json();
       return data.exists;
     } catch (error) {
