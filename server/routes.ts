@@ -474,9 +474,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // API routes - now protected with authentication
-  // Get all sounds
-  app.get('/api/sounds', verifyToken, async (req, res) => {
+  // API routes - some now public for playback page
+  // Get all sounds - public access for playback
+  app.get('/api/sounds', async (req, res) => {
     try {
       const sounds = await storage.getSounds();
       res.json(sounds);
@@ -486,8 +486,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get sounds by category
-  app.get('/api/sounds/category/:category', verifyToken, async (req, res) => {
+  // Get sounds by category - public access for playback
+  app.get('/api/sounds/category/:category', async (req, res) => {
     try {
       const category = req.params.category as SoundCategory;
       
@@ -594,34 +594,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Serve audio files
-  app.get('/api/audio/:filename', async (req: AuthRequest, res) => {
+  // Serve audio files - public access for playback
+  app.get('/api/audio/:filename', async (req, res) => {
     try {
-      // Extract the token from authorization header
-      const authHeader = req.headers.authorization;
-      let isAuthorized = false;
-      
-      if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.split('Bearer ')[1];
-        
-        try {
-          // Verify the ID token and check if user is allowed
-          const decodedToken = await verifyFirebaseToken(token);
-          
-          if (decodedToken && decodedToken.email) {
-            const email = decodedToken.email;
-            isAuthorized = await storage.isUserAllowed(email);
-          }
-        } catch (error) {
-          console.error('Error verifying token for audio access:', error);
-          // Continue with unauthorized handling
-        }
-      }
-      
-      if (!isAuthorized) {
-        return res.status(401).json({ message: 'Unauthorized: Valid token required to access audio files' });
-      }
-      
       const filePath = storage.getFilePath(req.params.filename);
       
       // Check if file exists
