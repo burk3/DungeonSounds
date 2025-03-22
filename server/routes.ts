@@ -477,6 +477,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Simplified user management API for admin page
+  app.post('/api/admin/add-user', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const { email, isAdmin = false } = req.body;
+      
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ message: 'Valid email is required' });
+      }
+      
+      // Check if user already exists
+      const existingUser = await storage.getAllowedUserByEmail(email);
+      if (existingUser) {
+        return res.status(409).json({ message: 'User already exists' });
+      }
+      
+      // Create the new user
+      const newUser = await storage.createAllowedUser({
+        email,
+        isAdmin: Boolean(isAdmin),
+        displayName: null, // Will be updated when user logs in
+        uid: null // Will be set when user logs in
+      });
+      
+      res.status(201).json(newUser);
+    } catch (err) {
+      console.error('Error adding user:', err);
+      res.status(500).json({ message: 'Failed to add user' });
+    }
+  });
+  
+  app.delete('/api/admin/remove-user/:email', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const email = req.params.email;
+      
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+      
+      // Find user by email
+      const user = await storage.getAllowedUserByEmail(email);
+      
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Prevent removing yourself
+      if (req.user && req.user.email === email) {
+        return res.status(400).json({ message: 'Cannot remove yourself' });
+      }
+      
+      // Delete the user
+      const result = await storage.deleteAllowedUser(user.id);
+      
+      if (!result) {
+        return res.status(404).json({ message: 'Failed to delete user' });
+      }
+      
+      res.status(204).end();
+    } catch (err) {
+      console.error('Error removing user:', err);
+      res.status(500).json({ message: 'Failed to remove user' });
+    }
+  });
+  
   // API routes - some now public for playback page
   // Get all sounds - public access for playback
   app.get('/api/sounds', async (req, res) => {
