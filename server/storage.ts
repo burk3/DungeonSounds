@@ -172,46 +172,53 @@ async function deleteInviteCode(code: string): Promise<boolean> {
 async function getAllInviteCodes(): Promise<InviteCode[]> {
   try {
     const prefix = "invite:";
-    const keys = await db.list(prefix);
+    const listResult = await db.list(prefix);
     const inviteCodes: InviteCode[] = [];
     
-    console.log("Retrieved invite code keys:", Object.keys(keys));
+    console.log("List result:", listResult);
     
-    for (const fullKey of Object.keys(keys)) {
-      const code = fullKey.substring(prefix.length); // Remove the prefix to get just the code
-      console.log(`Getting invite code data for: ${code}`);
-      
-      const rawInviteData = await db.get(fullKey);
-      
-      if (rawInviteData) {
-        // Parse string data if needed
-        let parsedData = rawInviteData;
-        if (typeof rawInviteData === 'string') {
-          try {
-            parsedData = JSON.parse(rawInviteData);
-          } catch (e) {
-            console.warn(`Failed to parse invite data for ${code}`);
-          }
-        }
+    // Check if the result has expected format
+    if (!listResult || typeof listResult !== 'object') {
+      console.warn("Unexpected list result format:", listResult);
+      return [];
+    }
+    
+    // Replit DB response has an 'ok' property and 'value' for successful responses
+    if (listResult.ok === false) {
+      console.warn("List operation failed:", listResult.error);
+      return [];
+    }
+    
+    // Check if the result has a value property which should contain the keys
+    if (!listResult.value || typeof listResult.value !== 'object') {
+      console.warn("List result missing or invalid value:", listResult);
+      return [];
+    }
+    
+    // Get the actual keys
+    const keys = listResult.value;
+    console.log("Invite code keys:", keys);
+    
+    // Debug: what kind of object is keys?
+    console.log("Keys type:", typeof keys);
+    console.log("Keys instanceof Array:", Array.isArray(keys));
+    
+    // Process each key in the result
+    if (Array.isArray(keys)) {
+      // If keys is an array of strings
+      for (const key of keys) {
+        if (typeof key !== 'string' || !key.startsWith(prefix)) continue;
         
-        // Verify it has the expected structure
-        if (typeof parsedData === 'object' &&
-            ('code' in parsedData || // Use existing code in data or the key 
-             'createdBy' in parsedData && 
-             'createdAt' in parsedData)) {
-          
-          // Ensure the code property is set correctly
-          const inviteCode: InviteCode = {
-            code: parsedData.code || code,
-            createdBy: parsedData.createdBy,
-            createdAt: parsedData.createdAt
-          };
-          
-          inviteCodes.push(inviteCode);
-          console.log(`Added invite code to list: ${inviteCode.code}`);
-        } else {
-          console.warn(`Invalid invite code data format for ${code}:`, parsedData);
-        }
+        const code = key.substring(prefix.length);
+        await processInviteCode(code, inviteCodes);
+      }
+    } else if (typeof keys === 'object') {
+      // If keys is an object with key-value pairs
+      for (const key of Object.keys(keys)) {
+        if (!key.startsWith(prefix)) continue;
+        
+        const code = key.substring(prefix.length);
+        await processInviteCode(code, inviteCodes);
       }
     }
     
@@ -220,6 +227,66 @@ async function getAllInviteCodes(): Promise<InviteCode[]> {
   } catch (error) {
     console.error("Error listing invite codes:", error);
     return [];
+  }
+}
+
+// Helper function to process a single invite code
+async function processInviteCode(code: string, inviteCodes: InviteCode[]) {
+  console.log(`Processing invite code: ${code}`);
+  
+  try {
+    const key = getInviteCodeKey(code);
+    const rawInviteData = await db.get(key);
+    
+    if (!rawInviteData) {
+      console.warn(`No data found for invite code: ${code}`);
+      return;
+    }
+    
+    // Parse string data if needed
+    let parsedData = rawInviteData;
+    if (typeof rawInviteData === 'string') {
+      try {
+        parsedData = JSON.parse(rawInviteData);
+      } catch (e) {
+        console.warn(`Failed to parse invite data for ${code}`);
+      }
+    }
+    
+    // Verify it has the expected structure
+    if (typeof parsedData === 'object') {
+      // If this is a generated invite code (has all required fields)
+      if ('code' in parsedData && 'createdBy' in parsedData && 'createdAt' in parsedData) {
+        const inviteCode: InviteCode = {
+          code: String(parsedData.code),
+          createdBy: String(parsedData.createdBy),
+          createdAt: String(parsedData.createdAt)
+        };
+        
+        inviteCodes.push(inviteCode);
+        console.log(`Added invite code to list: ${inviteCode.code}`);
+      } 
+      // If missing some fields, try to construct from available data + key
+      else if ('createdBy' in parsedData || 'createdAt' in parsedData) {
+        const createdBy = 'createdBy' in parsedData ? String(parsedData.createdBy) : 'Unknown';
+        const createdAt = 'createdAt' in parsedData ? String(parsedData.createdAt) : new Date().toISOString();
+        
+        const inviteCode: InviteCode = {
+          code,
+          createdBy,
+          createdAt
+        };
+        
+        inviteCodes.push(inviteCode);
+        console.log(`Added invite code (partially reconstructed) to list: ${inviteCode.code}`);
+      } else {
+        console.warn(`Invalid invite code data format for ${code}:`, parsedData);
+      }
+    } else {
+      console.warn(`Non-object data for invite code ${code}:`, parsedData);
+    }
+  } catch (error) {
+    console.error(`Error processing invite code ${code}:`, error);
   }
 }
 
