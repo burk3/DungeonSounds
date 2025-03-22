@@ -32,8 +32,21 @@ const getSoundMetadataKey = (filename: string) => `sound:${filename}`;
 
 async function getSoundMetadata(filename: string): Promise<SoundMetadata | null> {
   try {
-    const key = getSoundMetadataKey(filename);
-    const metadata = await db.get(key);
+    // Try with clean filename (no prefix)
+    const cleanFilename = filename.replace(/^sounds\//, '');
+    const key = getSoundMetadataKey(cleanFilename);
+    let metadata = await db.get(key);
+    
+    // If not found and filename was cleaned, try with original filename (might be legacy)
+    if (!metadata && cleanFilename !== filename) {
+      const originalKey = getSoundMetadataKey(filename);
+      metadata = await db.get(originalKey);
+      
+      if (metadata) {
+        console.log(`Found metadata using legacy path: ${filename}`);
+      }
+    }
+    
     if (!metadata) return null;
     
     // Verify the returned object has the required properties
@@ -53,8 +66,11 @@ async function getSoundMetadata(filename: string): Promise<SoundMetadata | null>
 
 async function saveSoundMetadata(filename: string, metadata: SoundMetadata): Promise<void> {
   try {
-    const key = getSoundMetadataKey(filename);
+    // Always use clean filename (no prefix) for consistency
+    const cleanFilename = filename.replace(/^sounds\//, '');
+    const key = getSoundMetadataKey(cleanFilename);
     await db.set(key, metadata);
+    console.log(`Saved metadata with key: ${key}`);
   } catch (error) {
     console.error(`Error saving metadata for ${filename}:`, error);
   }
@@ -165,33 +181,55 @@ export class MemStorage implements IStorage {
       }
 
       const files = listResult.value;
+      console.log(`Found ${files.length} files in object storage`);
+      
+      // Track which files we've processed to avoid duplicates
+      const processedFiles = new Set<string>();
 
       // Convert bucket objects to Sound objects
       const sounds: Sound[] = await Promise.all(
         files.map(async (file) => {
-          // Check if we already have this sound in our collection
-          const existingSound = Array.from(this.sounds.values()).find(
-            (s) => s.filename === file.name,
-          );
+          // Clean the filename from the object storage
+          const originalFilename = file.name;
+          const cleanFilename = originalFilename.replace(/^sounds\//, '');
+          
+          // Skip if we've already processed this file (by its clean name)
+          if (processedFiles.has(cleanFilename)) {
+            return null;
+          }
+          
+          processedFiles.add(cleanFilename);
+          
+          // Find an existing sound with the same filename (with or without prefix)
+          const existingSound = Array.from(this.sounds.values()).find(sound => {
+            const cleanSoundFilename = sound.filename.replace(/^sounds\//, '');
+            return (
+              sound.filename === originalFilename || 
+              cleanSoundFilename === cleanFilename ||
+              sound.filename === cleanFilename ||
+              cleanSoundFilename === originalFilename
+            );
+          });
 
           if (existingSound) {
             return existingSound;
           }
 
-          // Get metadata from database if available
-          const metadata = await getSoundMetadata(file.name);
+          // Get metadata from database with our improved function that checks both path styles
+          const metadata = await getSoundMetadata(originalFilename);
           
-          // Create a new sound entry for this file
+          // Create a new sound entry using the clean filename
           const id = this.currentSoundId++;
           const fileNameWithoutExt = path.basename(
-            file.name,
-            path.extname(file.name),
+            cleanFilename,
+            path.extname(cleanFilename),
           );
 
           const newSound: Sound = {
             id,
             name: fileNameWithoutExt,
-            filename: file.name,
+            // Store the cleaned filename without the sounds/ prefix
+            filename: cleanFilename,
             category: "effects",
             uploader: metadata?.uploader || null,
             uploadedAt: metadata?.uploadedAt ? new Date(metadata.uploadedAt) : new Date(),
@@ -199,12 +237,14 @@ export class MemStorage implements IStorage {
 
           // Save in our in-memory collection
           this.sounds.set(id, newSound);
+          console.log(`Added sound: ${newSound.name} (${newSound.filename})`);
 
           return newSound;
         }),
       );
 
-      return sounds;
+      // Filter out any null entries (from skipped duplicates)
+      return sounds.filter(sound => sound !== null);
     } catch (error) {
       console.error("Error listing sounds from object storage:", error);
       // Fallback to in-memory sounds
@@ -223,7 +263,19 @@ export class MemStorage implements IStorage {
   }
   
   async getSoundByFilename(filename: string): Promise<Sound | undefined> {
-    return Array.from(this.sounds.values()).find(sound => sound.filename === filename);
+    // Clean the filename that was passed in
+    const cleanInputFilename = filename.replace(/^sounds\//, '');
+    
+    // Find a sound by comparing with its filename, trying both with and without prefix
+    return Array.from(this.sounds.values()).find(sound => {
+      const cleanSoundFilename = sound.filename.replace(/^sounds\//, '');
+      return (
+        sound.filename === filename || 
+        cleanSoundFilename === cleanInputFilename ||
+        sound.filename === cleanInputFilename ||
+        cleanSoundFilename === filename
+      );
+    });
   }
   
   async soundTitleExists(title: string): Promise<boolean> {
