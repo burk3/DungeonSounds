@@ -184,7 +184,7 @@ export interface IStorage {
   // User operations
   getAllowedUsers(): Promise<AllowedUser[]>;
   getAllowedUserByEmail(email: string): Promise<AllowedUser | undefined>;
-  getAllowedUserByUid(uid: string): Promise<AllowedUser | undefined>;
+  getAllowedUserByUid(uid: string): Promise<AllowedUser | undefined>; // Deprecated
   createAllowedUser(user: InsertAllowedUser): Promise<AllowedUser>;
   updateAllowedUser(
     id: number,
@@ -520,9 +520,9 @@ export class MemStorage implements IStorage {
     return user;
   }
 
-  // We don't need this anymore, since we removed uid field
+  // This method is deprecated - we no longer use UIDs
   async getAllowedUserByUid(uid: string): Promise<AllowedUser | undefined> {
-    console.warn('getAllowedUserByUid is deprecated, using email instead');
+    console.warn('getAllowedUserByUid is deprecated - uid field has been removed');
     return undefined;
   }
 
