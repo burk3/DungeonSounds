@@ -600,10 +600,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = req.params.filename;
       const objectStorage = storage.getObjectStorage();
       
-      // Check if file exists in object storage
-      const exists = await objectStorage.exists(filename);
+      // Check if file exists in object storage by attempting to get info
+      // The exists method returns a Result<boolean>
+      const existsResult = await objectStorage.exists(filename);
       
-      if (!exists) {
+      if (!existsResult.ok || !existsResult.value) {
         return res.status(404).json({ message: 'Audio file not found' });
       }
       
@@ -618,11 +619,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set content type
       res.set('Content-Type', contentType);
       
-      // Get a readable stream from the object storage
-      const stream = await objectStorage.downloadAsStream(filename);
-      
-      // Pipe the stream to the response
-      stream.pipe(res);
+      try {
+        // Get a readable stream from the object storage
+        const stream = await objectStorage.downloadAsStream(filename);
+        
+        // Pipe the stream to the response
+        stream.pipe(res);
+      } catch (streamErr) {
+        console.error('Error streaming audio file:', streamErr);
+        return res.status(500).json({ message: 'Failed to stream audio file' });
+      }
     } catch (err) {
       console.error('Error serving audio file:', err);
       res.status(500).json({ message: 'Failed to serve audio file' });

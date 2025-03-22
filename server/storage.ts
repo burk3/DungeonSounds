@@ -72,11 +72,18 @@ export class MemStorage implements IStorage {
   async getSounds(): Promise<Sound[]> {
     try {
       // Get list of all files in the bucket
-      const files = await objectStorage.list();
+      const listResult = await objectStorage.list();
+      
+      if (!listResult.ok) {
+        console.error('Failed to list files from bucket:', listResult.error);
+        return Array.from(this.sounds.values());
+      }
+      
+      const files = listResult.value;
       
       // Convert bucket objects to Sound objects
       const sounds: Sound[] = await Promise.all(
-        files.map(async (file, index) => {
+        files.map(async (file) => {
           // Check if we already have this sound in our collection
           const existingSound = Array.from(this.sounds.values()).find(
             s => s.filename === file.name
@@ -92,7 +99,7 @@ export class MemStorage implements IStorage {
           
           const newSound: Sound = {
             id,
-            title: fileNameWithoutExt,
+            name: fileNameWithoutExt,
             filename: file.name,
             category: "effects",
             duration: null, // We don't have duration information from storage
@@ -147,8 +154,14 @@ export class MemStorage implements IStorage {
     try {
       // Delete from object storage if we have a filename
       if (sound.filename) {
-        await objectStorage.delete(sound.filename);
-        console.log(`Deleted sound file from storage: ${sound.filename}`);
+        const deleteResult = await objectStorage.delete(sound.filename);
+        
+        if (!deleteResult.ok) {
+          console.error(`Failed to delete sound file from storage: ${sound.filename}`, deleteResult.error);
+          // Continue with removal from in-memory collection even if bucket deletion fails
+        } else {
+          console.log(`Deleted sound file from storage: ${sound.filename}`);
+        }
       }
       
       // Remove from in-memory collection
@@ -224,8 +237,14 @@ export class MemStorage implements IStorage {
     readableStream.push(null);
     
     try {
-      // Upload the file to Object Storage - method returns Promise<void> on success
-      await objectStorage.uploadFromStream(filename, readableStream);
+      // Upload the file to Object Storage
+      const uploadResult = await objectStorage.uploadFromStream(filename, readableStream);
+      
+      if (!uploadResult?.ok) {
+        console.error(`Failed to upload file: ${filename}`, uploadResult?.error);
+        throw new Error(`Failed to upload file: ${uploadResult?.error || 'Unknown error'}`);
+      }
+      
       console.log(`Successfully uploaded file: ${filename} to object storage`);
       return filename;
     } catch (error: any) {
