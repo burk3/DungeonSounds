@@ -23,16 +23,14 @@ import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 import * as admin from "firebase-admin";
 
-// Setup Firebase Admin SDK
+// Setup Firebase Admin SDK - using Google Application Default Credentials
 try {
+  // Initialize with application default credentials or minimally with just the project ID
+  // which is enough for token verification purposes
   admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL || undefined,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n') || undefined,
-    })
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID
   });
-  console.log("Firebase Admin SDK initialized");
+  console.log("Firebase Admin SDK initialized with project ID");
 } catch (error) {
   console.error("Firebase Admin SDK initialization error:", error);
 }
@@ -60,6 +58,73 @@ const upload = multer({
     }
   }
 });
+
+// Authentication middleware
+interface AuthRequest extends Request {
+  user?: AllowedUser;
+  token?: string;
+}
+
+// Verify Firebase ID token middleware
+const verifyToken = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Unauthorized: No token provided' });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    
+    try {
+      // Verify the ID token
+      const decodedToken = await admin.auth().verifyIdToken(token);
+      const email = decodedToken.email;
+      
+      if (!email) {
+        return res.status(401).json({ message: 'Unauthorized: No email in token' });
+      }
+      
+      // Check if user is in allowlist
+      const isAllowed = await storage.isUserAllowed(email);
+      if (!isAllowed) {
+        return res.status(403).json({ message: 'Forbidden: User not in allowlist' });
+      }
+      
+      // Get user from storage
+      const user = await storage.getAllowedUserByEmail(email);
+      
+      // Store user info for route handlers
+      req.user = user;
+      req.token = token;
+      
+      next();
+    } catch (error) {
+      console.error('Error verifying token:', error);
+      return res.status(401).json({ message: 'Unauthorized: Invalid token' });
+    }
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return res.status(500).json({ message: 'Server error during authentication' });
+  }
+};
+
+// Admin-only middleware
+const requireAdmin = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: 'Unauthorized: Authentication required' });
+    }
+    
+    if (!req.user.isAdmin) {
+      return res.status(403).json({ message: 'Forbidden: Admin privileges required' });
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Admin authorization error:', error);
+    return res.status(500).json({ message: 'Server error during authorization' });
+  }
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -223,9 +288,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
-  // API routes
+  // Auth routes
+  
+  // Check if a user is allowed (in the allowlist)
+  app.post('/api/auth/check', async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: 'Email is required' });
+      }
+      
+      const isAllowed = await storage.isUserAllowed(email);
+      const user = isAllowed ? await storage.getAllowedUserByEmail(email) : null;
+      
+      res.json({ 
+        allowed: isAllowed,
+        isAdmin: user ? user.isAdmin : false
+      });
+    } catch (err) {
+      console.error('Error checking user:', err);
+      res.status(500).json({ message: 'Error checking user' });
+    }
+  });
+
+  // Update user info after login (uid and last login)
+  app.post('/api/auth/update-login', verifyToken, async (req: AuthRequest, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized' });
+      }
+      
+      const user = req.user;
+      const { uid } = req.body;
+      
+      if (uid && !user.uid) {
+        // Update user with Firebase UID if not set before
+        const updatedUser = await storage.updateAllowedUser(user.id, {
+          uid,
+          lastLogin: new Date()
+        });
+        
+        res.json(updatedUser);
+      } else {
+        // Just update last login
+        const updatedUser = await storage.updateAllowedUser(user.id, {
+          lastLogin: new Date()
+        });
+        
+        res.json(updatedUser);
+      }
+    } catch (err) {
+      console.error('Error updating user login:', err);
+      res.status(500).json({ message: 'Error updating user login' });
+    }
+  });
+
+  // Admin routes
+  
+  // Get all allowed users (admin only)
+  app.get('/api/admin/allowed-users', verifyToken, requireAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllowedUsers();
+      res.json(users);
+    } catch (err) {
+      console.error('Error fetching allowed users:', err);
+      res.status(500).json({ message: 'Error fetching allowed users' });
+    }
+  });
+  
+  // Add a new allowed user (admin only)
+  app.post('/api/admin/allowed-users', verifyToken, requireAdmin, async (req, res) => {
+    try {
+      const { email, displayName, isAdmin } = req.body;
+      
+      try {
+        // Validate input
+        const parsedData = insertAllowedUserSchema.parse({
+          email,
+          displayName: displayName || null,
+          isAdmin: isAdmin === true,
+          uid: null // Will be set when user logs in
+        });
+        
+        // Check if user already exists
+        const existingUser = await storage.getAllowedUserByEmail(email);
+        if (existingUser) {
+          return res.status(409).json({ message: 'User already exists' });
+        }
+        
+        // Create the user
+        const user = await storage.createAllowedUser(parsedData);
+        res.status(201).json(user);
+      } catch (error) {
+        if (error instanceof ZodError) {
+          const validationError = fromZodError(error);
+          return res.status(400).json({ message: validationError.message });
+        }
+        throw error;
+      }
+    } catch (err) {
+      console.error('Error creating allowed user:', err);
+      res.status(500).json({ message: 'Error creating allowed user' });
+    }
+  });
+  
+  // Delete an allowed user (admin only)
+  app.delete('/api/admin/allowed-users/:id', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+      
+      // Prevent admin from deleting themselves
+      if (req.user && req.user.id === id) {
+        return res.status(400).json({ message: 'Cannot delete your own account' });
+      }
+      
+      const result = await storage.deleteAllowedUser(id);
+      
+      if (!result) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      res.status(204).end();
+    } catch (err) {
+      console.error('Error deleting allowed user:', err);
+      res.status(500).json({ message: 'Error deleting allowed user' });
+    }
+  });
+  
+  // Update an allowed user (admin only)
+  app.patch('/api/admin/allowed-users/:id', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+      
+      const { displayName, isAdmin } = req.body;
+      
+      // Prevent admin from removing their own admin privileges
+      if (req.user && req.user.id === id && isAdmin === false) {
+        return res.status(400).json({ message: 'Cannot remove your own admin privileges' });
+      }
+      
+      const updates: Partial<AllowedUser> = {};
+      
+      if (displayName !== undefined) {
+        updates.displayName = displayName;
+      }
+      
+      if (isAdmin !== undefined) {
+        updates.isAdmin = isAdmin;
+      }
+      
+      const updatedUser = await storage.updateAllowedUser(id, updates);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      res.json(updatedUser);
+    } catch (err) {
+      console.error('Error updating allowed user:', err);
+      res.status(500).json({ message: 'Error updating allowed user' });
+    }
+  });
+  
+  // API routes - now protected with authentication
   // Get all sounds
-  app.get('/api/sounds', async (req, res) => {
+  app.get('/api/sounds', verifyToken, async (req, res) => {
     try {
       const sounds = await storage.getSounds();
       res.json(sounds);
@@ -236,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get sounds by category
-  app.get('/api/sounds/category/:category', async (req, res) => {
+  app.get('/api/sounds/category/:category', verifyToken, async (req, res) => {
     try {
       const category = req.params.category as SoundCategory;
       
@@ -253,7 +489,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get sound by ID
-  app.get('/api/sounds/:id', async (req, res) => {
+  app.get('/api/sounds/:id', verifyToken, async (req: AuthRequest, res) => {
     try {
       const id = parseInt(req.params.id);
       
@@ -275,7 +511,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Upload a new sound
-  app.post('/api/sounds', upload.single('file'), async (req, res) => {
+  app.post('/api/sounds', verifyToken, upload.single('file'), async (req: AuthRequest, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: 'No file uploaded' });
@@ -344,7 +580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Serve audio files
-  app.get('/api/audio/:filename', (req, res) => {
+  app.get('/api/audio/:filename', verifyToken, (req: AuthRequest, res) => {
     try {
       const filePath = storage.getFilePath(req.params.filename);
       

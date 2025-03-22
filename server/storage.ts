@@ -115,8 +115,11 @@ export class MemStorage implements IStorage {
   async createAllowedUser(user: InsertAllowedUser): Promise<AllowedUser> {
     const id = this.currentUserId++;
     const newUser: AllowedUser = {
-      ...user,
       id,
+      email: user.email,
+      displayName: user.displayName || null,
+      isAdmin: user.isAdmin === true,
+      uid: user.uid || null,
       lastLogin: null,
       createdAt: new Date()
     };
