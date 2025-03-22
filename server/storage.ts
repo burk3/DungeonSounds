@@ -465,13 +465,11 @@ export class MemStorage implements IStorage {
         if (!userData) continue;
         
         // Convert to AllowedUser format
+        const id = this.currentUserId++; // Generate an in-memory ID
         const user: AllowedUser = {
-          id: this.currentUserId++, // Generate an in-memory ID
+          id,
           email: userData.email,
-          displayName: userData.displayName || null,
           isAdmin: userData.isAdmin,
-          uid: userData.uid || null,
-          lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : null,
           createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
         };
         
@@ -513,10 +511,7 @@ export class MemStorage implements IStorage {
     const user: AllowedUser = {
       id,
       email: userData.email,
-      displayName: userData.displayName || null,
       isAdmin: userData.isAdmin,
-      uid: userData.uid || null,
-      lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : null,
       createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
     };
     
@@ -525,45 +520,9 @@ export class MemStorage implements IStorage {
     return user;
   }
 
+  // We don't need this anymore, since we removed uid field
   async getAllowedUserByUid(uid: string): Promise<AllowedUser | undefined> {
-    if (!uid) return undefined;
-    
-    // Check in-memory cache first
-    const cachedUser = Array.from(this.allowedUsers.values()).find(
-      (user) => user.uid === uid,
-    );
-    
-    if (cachedUser) {
-      return cachedUser;
-    }
-    
-    // If not found, we need to check all users in the database
-    // This is less efficient but uid lookups should be rare
-    const userKeys = await getAllUserKeys();
-    
-    for (const key of userKeys) {
-      const email = key.replace(/^user:/, '');
-      const userData = await getUserData(email);
-      
-      if (userData && userData.uid === uid) {
-        // Convert to AllowedUser
-        const id = this.currentUserId++;
-        const user: AllowedUser = {
-          id,
-          email: userData.email,
-          displayName: userData.displayName || null,
-          isAdmin: userData.isAdmin,
-          uid: userData.uid,
-          lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : null,
-          createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
-        };
-        
-        // Add to in-memory cache
-        this.allowedUsers.set(id, user);
-        return user;
-      }
-    }
-    
+    console.warn('getAllowedUserByUid is deprecated, using email instead');
     return undefined;
   }
 
@@ -577,10 +536,7 @@ export class MemStorage implements IStorage {
       const existingUser: AllowedUser = {
         id,
         email: existingUserData.email,
-        displayName: existingUserData.displayName || null,
         isAdmin: existingUserData.isAdmin,
-        uid: existingUserData.uid || null,
-        lastLogin: existingUserData.lastLogin ? new Date(existingUserData.lastLogin) : null,
         createdAt: existingUserData.createdAt ? new Date(existingUserData.createdAt) : new Date(),
       };
       
@@ -594,9 +550,6 @@ export class MemStorage implements IStorage {
     const userData: UserData = {
       email: user.email,
       isAdmin: user.isAdmin === true,
-      displayName: user.displayName || null,
-      uid: user.uid || null,
-      lastLogin: null,
       createdAt: now.toISOString(),
     };
     
@@ -607,10 +560,7 @@ export class MemStorage implements IStorage {
     const newUser: AllowedUser = {
       id,
       email: user.email,
-      displayName: user.displayName || null,
       isAdmin: user.isAdmin === true,
-      uid: user.uid || null,
-      lastLogin: null,
       createdAt: now,
     };
     
@@ -640,9 +590,6 @@ export class MemStorage implements IStorage {
       const updatedUserData: UserData = {
         ...userData,
         isAdmin: updatedUser.isAdmin,
-        displayName: updatedUser.displayName,
-        uid: updatedUser.uid,
-        lastLogin: updatedUser.lastLogin ? updatedUser.lastLogin.toISOString() : null,
       };
       
       await saveUserData(user.email, updatedUserData);
@@ -652,9 +599,6 @@ export class MemStorage implements IStorage {
       const newUserData: UserData = {
         email: updatedUser.email,
         isAdmin: updatedUser.isAdmin,
-        displayName: updatedUser.displayName,
-        uid: updatedUser.uid,
-        lastLogin: updatedUser.lastLogin ? updatedUser.lastLogin.toISOString() : null,
         createdAt: updatedUser.createdAt ? updatedUser.createdAt.toISOString() : new Date().toISOString(),
       };
       

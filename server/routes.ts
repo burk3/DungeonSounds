@@ -349,32 +349,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update user info after login (uid and last login)
+  // Update user login route (simplified - no longer tracking uid/lastLogin)
   app.post('/api/auth/update-login', verifyToken, async (req: AuthRequest, res) => {
     try {
       if (!req.user) {
         return res.status(401).json({ message: 'Unauthorized' });
       }
       
-      const user = req.user;
-      const { uid } = req.body;
-      
-      if (uid && !user.uid) {
-        // Update user with Firebase UID if not set before
-        const updatedUser = await storage.updateAllowedUser(user.id, {
-          uid,
-          lastLogin: new Date()
-        });
-        
-        res.json(updatedUser);
-      } else {
-        // Just update last login
-        const updatedUser = await storage.updateAllowedUser(user.id, {
-          lastLogin: new Date()
-        });
-        
-        res.json(updatedUser);
-      }
+      // Just return the current user info
+      res.json(req.user);
     } catch (err) {
       console.error('Error updating user login:', err);
       res.status(500).json({ message: 'Error updating user login' });
@@ -397,15 +380,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add a new allowed user (admin only)
   app.post('/api/admin/allowed-users', verifyToken, requireAdmin, async (req, res) => {
     try {
-      const { email, displayName, isAdmin } = req.body;
+      const { email, isAdmin } = req.body;
       
       try {
         // Validate input
         const parsedData = insertAllowedUserSchema.parse({
           email,
-          displayName: displayName || null,
-          isAdmin: isAdmin === true,
-          uid: null // Will be set when user logs in
+          isAdmin: isAdmin === true
         });
         
         // Check if user already exists
@@ -466,7 +447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: 'Invalid user ID' });
       }
       
-      const { displayName, isAdmin } = req.body;
+      const { isAdmin } = req.body;
       
       // Prevent admin from removing their own admin privileges
       if (req.user && req.user.id === id && isAdmin === false) {
@@ -474,10 +455,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const updates: Partial<AllowedUser> = {};
-      
-      if (displayName !== undefined) {
-        updates.displayName = displayName;
-      }
       
       if (isAdmin !== undefined) {
         updates.isAdmin = isAdmin;
@@ -514,9 +491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the new user
       const newUser = await storage.createAllowedUser({
         email,
-        isAdmin: Boolean(isAdmin),
-        displayName: null, // Will be updated when user logs in
-        uid: null // Will be set when user logs in
+        isAdmin: Boolean(isAdmin)
       });
       
       res.status(201).json(newUser);
