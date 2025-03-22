@@ -4,7 +4,7 @@ import {
   type SoundCategory,
   type AllowedUser,
   type InsertAllowedUser,
-} from "@shared/types";
+} from "@shared/schema";
 import path from "path";
 import { Client } from "@replit/object-storage";
 import { Readable } from "stream";

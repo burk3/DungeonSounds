@@ -16,7 +16,7 @@ import {
   AllowedUser,
   insertSoundSchema,
   insertAllowedUserSchema
-} from "@shared/types";
+} from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
