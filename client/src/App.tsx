@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import Playback from "@/pages/playback";
 import Remote from "@/pages/remote";
 import { WebSocketProvider } from "./lib/websocket";
+import { AuthProvider } from "./lib/auth";
 import { useEffect } from "react";
 
 function Router() {
@@ -30,10 +31,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WebSocketProvider>
-        <Router />
-        <Toaster />
-      </WebSocketProvider>
+      <AuthProvider>
+        <WebSocketProvider>
+          <Router />
+          <Toaster />
+        </WebSocketProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

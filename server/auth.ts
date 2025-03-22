@@ -1,15 +1,30 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { AuthUser, getUserInfo } from '@replit/repl-auth';
+import { getUserInfo } from '@replit/repl-auth';
+import { Session } from 'express-session';
+
+// Define the user type based on Replit Auth's UserInfo interface
+type User = {
+  id?: string;
+  name?: string;
+  bio?: string;
+  url?: string;
+  profileImage?: string;
+  roles?: string[];
+  teams?: Array<{ name: string; url: string }>;
+};
 
 declare global {
   namespace Express {
     interface Request {
-      user?: AuthUser;
+      user?: User;
     }
-    
-    interface Session {
-      user?: AuthUser;
-    }
+  }
+}
+
+// Extend the session
+declare module 'express-session' {
+  interface SessionData {
+    user?: User;
   }
 }
 
