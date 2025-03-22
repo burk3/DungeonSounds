@@ -36,32 +36,36 @@ interface UserData {
 const getSoundMetadataKey = (filename: string) => `sound:${filename}`;
 const getUserKey = (email: string) => `user:${email.toLowerCase()}`;
 
-async function getSoundMetadata(filename: string): Promise<SoundMetadata | null> {
+async function getSoundMetadata(
+  filename: string,
+): Promise<SoundMetadata | null> {
   try {
     // Try with clean filename (no prefix)
-    const cleanFilename = filename.replace(/^sounds\//, '');
+    const cleanFilename = filename.replace(/^sounds\//, "");
     const key = getSoundMetadataKey(cleanFilename);
     let metadata = await db.get(key);
-    
+
     // If not found and filename was cleaned, try with original filename (might be legacy)
     if (!metadata && cleanFilename !== filename) {
       const originalKey = getSoundMetadataKey(filename);
       metadata = await db.get(originalKey);
-      
+
       if (metadata) {
         console.log(`Found metadata using legacy path: ${filename}`);
       }
     }
-    
+
     if (!metadata) return null;
-    
+
     // Verify the returned object has the required properties
-    if (typeof metadata === 'object' && 
-        'uploader' in metadata && 
-        'uploadedAt' in metadata) {
+    if (
+      typeof metadata === "object" &&
+      "uploader" in metadata &&
+      "uploadedAt" in metadata
+    ) {
       return metadata as SoundMetadata;
     }
-    
+
     console.warn(`Invalid metadata format for ${filename}`);
     return null;
   } catch (error) {
@@ -70,10 +74,13 @@ async function getSoundMetadata(filename: string): Promise<SoundMetadata | null>
   }
 }
 
-async function saveSoundMetadata(filename: string, metadata: SoundMetadata): Promise<void> {
+async function saveSoundMetadata(
+  filename: string,
+  metadata: SoundMetadata,
+): Promise<void> {
   try {
     // Always use clean filename (no prefix) for consistency
-    const cleanFilename = filename.replace(/^sounds\//, '');
+    const cleanFilename = filename.replace(/^sounds\//, "");
     const key = getSoundMetadataKey(cleanFilename);
     await db.set(key, metadata);
     console.log(`Saved metadata with key: ${key}`);
@@ -85,10 +92,10 @@ async function saveSoundMetadata(filename: string, metadata: SoundMetadata): Pro
 async function deleteSoundMetadata(filename: string): Promise<void> {
   try {
     // Remove any sounds/ prefix if it exists
-    const cleanFilename = filename.replace(/^sounds\//, '');
+    const cleanFilename = filename.replace(/^sounds\//, "");
     const key = getSoundMetadataKey(cleanFilename);
     await db.delete(key);
-    
+
     // Also try to delete with prefix (for legacy files)
     if (cleanFilename !== filename) {
       const legacyKey = getSoundMetadataKey(filename);
@@ -129,17 +136,21 @@ async function getUserData(email: string): Promise<UserData | null> {
   try {
     const key = getUserKey(email);
     const userData = await db.get(key);
-    
+
     if (!userData) return null;
-    
+
     // Validate the data has at least email and isAdmin
-    if (typeof userData === 'object' && 
-        'email' in userData && 
-        'isAdmin' in userData) {
+    if (
+      typeof userData === "object" &&
+      "email" in userData &&
+      "isAdmin" in userData
+    ) {
       return userData as UserData;
     }
-    
+
     console.warn(`Invalid user data format for ${email}`);
+    console.log(`User data key: ${key}`);
+    console.log(`User data:`, userData);
     return null;
   } catch (error) {
     console.error(`Error getting user data for ${email}:`, error);
@@ -193,7 +204,11 @@ export interface IStorage {
   isUserAdmin(email: string): Promise<boolean>;
 
   // File operations
-  saveFile(buffer: Buffer, originalname: string, uploader?: string | null): Promise<string>;
+  saveFile(
+    buffer: Buffer,
+    originalname: string,
+    uploader?: string | null,
+  ): Promise<string>;
   getFilePath(filename: string): string;
   getObjectStorage(): any; // Exposes the Replit Object Storage client
 }
@@ -216,10 +231,10 @@ export class MemStorage implements IStorage {
 
   private async setupAdminUser() {
     const adminEmail = "burke.cates@gmail.com";
-    
+
     // Check in database first to avoid duplicate calls
     const userData = await getUserData(adminEmail);
-    
+
     if (userData) {
       // Make sure admin flag is set
       if (!userData.isAdmin) {
@@ -227,16 +242,18 @@ export class MemStorage implements IStorage {
         await saveUserData(adminEmail, userData);
         console.log("Admin privileges granted to:", adminEmail);
       }
-      
+
       // Load into in-memory cache
       const id = this.currentUserId++;
       const adminUser: AllowedUser = {
         id,
         email: userData.email,
         isAdmin: true, // Ensure admin flag
-        createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
+        createdAt: userData.createdAt
+          ? new Date(userData.createdAt)
+          : new Date(),
       };
-      
+
       this.allowedUsers.set(id, adminUser);
     } else {
       // Create new admin user in database
@@ -246,9 +263,9 @@ export class MemStorage implements IStorage {
         isAdmin: true,
         createdAt: now.toISOString(),
       };
-      
+
       await saveUserData(adminEmail, newUserData);
-      
+
       // Create in-memory version
       const id = this.currentUserId++;
       const adminUser: AllowedUser = {
@@ -257,7 +274,7 @@ export class MemStorage implements IStorage {
         isAdmin: true,
         createdAt: now,
       };
-      
+
       this.allowedUsers.set(id, adminUser);
       console.log("Admin user created:", adminEmail);
     }
@@ -276,30 +293,30 @@ export class MemStorage implements IStorage {
 
       const files = listResult.value;
       console.log(`Found ${files.length} files in object storage`);
-      
+
       // Track which files we've processed to avoid duplicates
       const processedFiles = new Set<string>();
 
       // Process files and build array of sounds to return
       const processedSounds: Sound[] = [];
-      
+
       for (const file of files) {
         // Clean the filename from the object storage
         const originalFilename = file.name;
-        const cleanFilename = originalFilename.replace(/^sounds\//, '');
-        
+        const cleanFilename = originalFilename.replace(/^sounds\//, "");
+
         // Skip if we've already processed this file (by its clean name)
         if (processedFiles.has(cleanFilename)) {
           continue;
         }
-        
+
         processedFiles.add(cleanFilename);
-        
+
         // Find an existing sound with the same filename (with or without prefix)
-        const existingSound = Array.from(this.sounds.values()).find(sound => {
-          const cleanSoundFilename = sound.filename.replace(/^sounds\//, '');
+        const existingSound = Array.from(this.sounds.values()).find((sound) => {
+          const cleanSoundFilename = sound.filename.replace(/^sounds\//, "");
           return (
-            sound.filename === originalFilename || 
+            sound.filename === originalFilename ||
             cleanSoundFilename === cleanFilename ||
             sound.filename === cleanFilename ||
             cleanSoundFilename === originalFilename
@@ -313,7 +330,7 @@ export class MemStorage implements IStorage {
 
         // Get metadata from database with our improved function that checks both path styles
         const metadata = await getSoundMetadata(originalFilename);
-        
+
         // Create a new sound entry using the clean filename
         const id = this.currentSoundId++;
         const fileNameWithoutExt = path.basename(
@@ -328,13 +345,15 @@ export class MemStorage implements IStorage {
           filename: cleanFilename,
           category: "effects",
           uploader: metadata?.uploader || null,
-          uploadedAt: metadata?.uploadedAt ? new Date(metadata.uploadedAt) : new Date(),
+          uploadedAt: metadata?.uploadedAt
+            ? new Date(metadata.uploadedAt)
+            : new Date(),
         };
 
         // Save in our in-memory collection
         this.sounds.set(id, newSound);
         console.log(`Added sound: ${newSound.name} (${newSound.filename})`);
-        
+
         processedSounds.push(newSound);
       }
 
@@ -355,23 +374,23 @@ export class MemStorage implements IStorage {
   async getSound(id: number): Promise<Sound | undefined> {
     return this.sounds.get(id);
   }
-  
+
   async getSoundByFilename(filename: string): Promise<Sound | undefined> {
     // Clean the filename that was passed in
-    const cleanInputFilename = filename.replace(/^sounds\//, '');
-    
+    const cleanInputFilename = filename.replace(/^sounds\//, "");
+
     // Find a sound by comparing with its filename, trying both with and without prefix
-    return Array.from(this.sounds.values()).find(sound => {
-      const cleanSoundFilename = sound.filename.replace(/^sounds\//, '');
+    return Array.from(this.sounds.values()).find((sound) => {
+      const cleanSoundFilename = sound.filename.replace(/^sounds\//, "");
       return (
-        sound.filename === filename || 
+        sound.filename === filename ||
         cleanSoundFilename === cleanInputFilename ||
         sound.filename === cleanInputFilename ||
         cleanSoundFilename === filename
       );
     });
   }
-  
+
   async soundTitleExists(title: string): Promise<boolean> {
     const filename = title; // The filename is the same as the title in our implementation
     return !!(await this.getSoundByFilename(filename));
@@ -399,9 +418,9 @@ export class MemStorage implements IStorage {
       // Delete from object storage if we have a filename
       if (sound.filename) {
         // Get clean filename (remove any directory prefix)
-        const cleanFilename = sound.filename.replace(/^sounds\//, '');
+        const cleanFilename = sound.filename.replace(/^sounds\//, "");
         let deleteSuccess = false;
-        
+
         // Try to delete without prefix first
         try {
           const deleteResult = await objectStorage.delete(cleanFilename);
@@ -410,9 +429,11 @@ export class MemStorage implements IStorage {
             deleteSuccess = true;
           }
         } catch (error) {
-          console.log(`File not found at path: ${cleanFilename}, trying with prefix...`);
+          console.log(
+            `File not found at path: ${cleanFilename}, trying with prefix...`,
+          );
         }
-        
+
         // If direct deletion failed, try with the sounds/ prefix
         if (!deleteSuccess) {
           try {
@@ -431,7 +452,7 @@ export class MemStorage implements IStorage {
             console.error(`Error deleting with prefix: ${error}`);
           }
         }
-        
+
         // Always delete the metadata
         await deleteSoundMetadata(cleanFilename);
         console.log(`Deleted metadata for: ${cleanFilename}`);
@@ -451,35 +472,37 @@ export class MemStorage implements IStorage {
     try {
       // Get all user keys
       const userKeys = await getAllUserKeys();
-      
+
       // Load and process users
       const validUsers: AllowedUser[] = [];
-      
+
       for (const key of userKeys) {
         // Extract email from key (remove "user:" prefix)
-        const email = key.replace(/^user:/, '');
+        const email = key.replace(/^user:/, "");
         const userData = await getUserData(email);
-        
+
         if (!userData) continue;
-        
+
         // Convert to AllowedUser format
         const id = this.currentUserId++; // Generate an in-memory ID
         const user: AllowedUser = {
           id,
           email: userData.email,
           isAdmin: userData.isAdmin,
-          createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
+          createdAt: userData.createdAt
+            ? new Date(userData.createdAt)
+            : new Date(),
         };
-        
+
         validUsers.push(user);
       }
-      
+
       // Update in-memory collection for faster access later
       this.allowedUsers.clear();
-      validUsers.forEach(user => {
+      validUsers.forEach((user) => {
         this.allowedUsers.set(user.id, user);
       });
-      
+
       return validUsers;
     } catch (error) {
       console.error("Error loading users from database:", error);
@@ -492,18 +515,18 @@ export class MemStorage implements IStorage {
     const cachedUser = Array.from(this.allowedUsers.values()).find(
       (user) => user.email === email,
     );
-    
+
     if (cachedUser) {
       return cachedUser;
     }
-    
+
     // If not found in cache, check database
     const userData = await getUserData(email);
-    
+
     if (!userData) {
       return undefined;
     }
-    
+
     // Convert to AllowedUser and cache it
     const id = this.currentUserId++;
     const user: AllowedUser = {
@@ -512,7 +535,7 @@ export class MemStorage implements IStorage {
       isAdmin: userData.isAdmin,
       createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
     };
-    
+
     // Add to in-memory cache
     this.allowedUsers.set(id, user);
     return user;
@@ -520,14 +543,16 @@ export class MemStorage implements IStorage {
 
   // This method is deprecated - we no longer use UIDs
   async getAllowedUserByUid(uid: string): Promise<AllowedUser | undefined> {
-    console.warn('getAllowedUserByUid is deprecated - uid field has been removed');
+    console.warn(
+      "getAllowedUserByUid is deprecated - uid field has been removed",
+    );
     return undefined;
   }
 
   async createAllowedUser(user: InsertAllowedUser): Promise<AllowedUser> {
     // Check if user already exists in database
     const existingUserData = await getUserData(user.email);
-    
+
     if (existingUserData) {
       // User exists, convert to AllowedUser format
       const id = this.currentUserId++;
@@ -535,14 +560,16 @@ export class MemStorage implements IStorage {
         id,
         email: existingUserData.email,
         isAdmin: existingUserData.isAdmin,
-        createdAt: existingUserData.createdAt ? new Date(existingUserData.createdAt) : new Date(),
+        createdAt: existingUserData.createdAt
+          ? new Date(existingUserData.createdAt)
+          : new Date(),
       };
-      
+
       // Add to in-memory collection
       this.allowedUsers.set(id, existingUser);
       return existingUser;
     }
-    
+
     // Create new user in database
     const now = new Date();
     const userData: UserData = {
@@ -550,9 +577,9 @@ export class MemStorage implements IStorage {
       isAdmin: user.isAdmin === true,
       createdAt: now.toISOString(),
     };
-    
+
     await saveUserData(user.email, userData);
-    
+
     // Create in-memory version
     const id = this.currentUserId++;
     const newUser: AllowedUser = {
@@ -561,10 +588,12 @@ export class MemStorage implements IStorage {
       isAdmin: user.isAdmin === true,
       createdAt: now,
     };
-    
+
     // Add to in-memory collection
     this.allowedUsers.set(id, newUser);
-    console.log(`Created new user: ${user.email}, isAdmin: ${user.isAdmin === true}`);
+    console.log(
+      `Created new user: ${user.email}, isAdmin: ${user.isAdmin === true}`,
+    );
     return newUser;
   }
 
@@ -575,21 +604,21 @@ export class MemStorage implements IStorage {
     // Get the user from in-memory collection
     const user = this.allowedUsers.get(id);
     if (!user) return undefined;
-    
+
     // Update in-memory version
     const updatedUser: AllowedUser = { ...user, ...updates };
     this.allowedUsers.set(id, updatedUser);
-    
+
     // Update in database
     const userData = await getUserData(user.email);
-    
+
     if (userData) {
       // Update the database copy
       const updatedUserData: UserData = {
         ...userData,
         isAdmin: updatedUser.isAdmin,
       };
-      
+
       await saveUserData(user.email, updatedUserData);
       console.log(`Updated user data for: ${user.email}`);
     } else {
@@ -597,12 +626,14 @@ export class MemStorage implements IStorage {
       const newUserData: UserData = {
         email: updatedUser.email,
         isAdmin: updatedUser.isAdmin,
-        createdAt: updatedUser.createdAt ? updatedUser.createdAt.toISOString() : new Date().toISOString(),
+        createdAt: updatedUser.createdAt
+          ? updatedUser.createdAt.toISOString()
+          : new Date().toISOString(),
       };
-      
+
       await saveUserData(updatedUser.email, newUserData);
     }
-    
+
     return updatedUser;
   }
 
@@ -610,23 +641,23 @@ export class MemStorage implements IStorage {
     // Get user from in-memory collection
     const user = this.allowedUsers.get(id);
     if (!user) return false;
-    
+
     // Delete from database
     await deleteUserData(user.email);
-    
+
     // Delete from in-memory collection
     return this.allowedUsers.delete(id);
   }
 
   async isUserAllowed(email: string): Promise<boolean> {
     if (!email) return false;
-    
+
     // First check if we have the admin user hardcoded
-    if (email.toLowerCase() === 'burke.cates@gmail.com') {
-      console.log('Admin user detected:', email);
+    if (email.toLowerCase() === "burke.cates@gmail.com") {
+      console.log("Admin user detected:", email);
       return true;
     }
-    
+
     // Then check if user exists in database
     const userData = await getUserData(email);
     return !!userData;
@@ -634,22 +665,26 @@ export class MemStorage implements IStorage {
 
   async isUserAdmin(email: string): Promise<boolean> {
     if (!email) return false;
-    
+
     // First check if we have the admin user hardcoded
-    if (email.toLowerCase() === 'burke.cates@gmail.com') {
-      console.log('Admin privileges granted to:', email);
+    if (email.toLowerCase() === "burke.cates@gmail.com") {
+      console.log("Admin privileges granted to:", email);
       return true;
     }
-    
+
     // Check if user exists and is admin
     const userData = await getUserData(email);
     return userData ? userData.isAdmin : false;
   }
 
   // File operations
-  async saveFile(buffer: Buffer, title: string, uploader: string | null = null): Promise<string> {
+  async saveFile(
+    buffer: Buffer,
+    title: string,
+    uploader: string | null = null,
+  ): Promise<string> {
     const ext = path.extname(title);
-    
+
     // Use title as the filename (this should already include the extension from the original file)
     // The file is stored as "Title.mp3" in the bucket
     const filename = title;
@@ -664,29 +699,29 @@ export class MemStorage implements IStorage {
       // The bucket name is correctly set in the Client initialization
       const uploadResult = await objectStorage.uploadFromStream(
         filename,
-        readableStream
+        readableStream,
       );
 
       // Handle different response structures to make this more robust
-      if (typeof uploadResult === 'object' && uploadResult !== null) {
+      if (typeof uploadResult === "object" && uploadResult !== null) {
         const result = uploadResult as any;
         if (result.ok === false) {
           console.error(
             `Failed to upload file: ${filename}`,
-            result.error || 'Unknown error'
+            result.error || "Unknown error",
           );
           throw new Error(
-            `Failed to upload file: ${result.error || 'Unknown error'}`
+            `Failed to upload file: ${result.error || "Unknown error"}`,
           );
         }
       }
-      
+
       // Save metadata to database
       const metadata: SoundMetadata = {
         uploader,
-        uploadedAt: new Date().toISOString()
+        uploadedAt: new Date().toISOString(),
       };
-      
+
       await saveSoundMetadata(filename, metadata);
       console.log(`Successfully saved metadata for: ${filename}`);
 
@@ -702,7 +737,9 @@ export class MemStorage implements IStorage {
 
   getFilePath(filename: string): string {
     // Remove any 'sounds/' prefix if it exists
-    const cleanFilename = filename.startsWith('sounds/') ? filename.substring(7) : filename;
+    const cleanFilename = filename.startsWith("sounds/")
+      ? filename.substring(7)
+      : filename;
     // This returns a URL path for the API endpoint that will stream the file
     return `/api/audio/${encodeURIComponent(cleanFilename)}`;
   }
