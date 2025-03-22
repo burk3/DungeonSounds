@@ -14,3 +14,6 @@ export const useWebSocket: () => {
   stopSound: () => void;
   setVolume: (volume: number) => void;
 } = useWebSocketOriginal;
+
+// Add default export for compatibility
+export default WebSocketProvider;
