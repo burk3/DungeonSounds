@@ -132,62 +132,19 @@ async function saveUserData(email: string, userData: UserData): Promise<void> {
 
 async function getUserData(email: string): Promise<UserData | null> {
   try {
-    if (!email) {
-      console.warn("Attempted to get user data with empty email");
-      return null;
-    }
-    
     const key = getUserKey(email);
     const userData = await db.get(key);
     
-    if (!userData) {
-      console.log(`No user data found for ${email}`);
-      return null;
-    }
+    if (!userData) return null;
     
-    // Handle if userData is a string (sometimes happens with Replit DB)
-    if (typeof userData === 'string') {
-      try {
-        const parsedUserData = JSON.parse(userData);
-        console.log(`Parsed string user data for ${email}:`, parsedUserData);
-        
-        if (typeof parsedUserData === 'object' && 
-            'email' in parsedUserData && 
-            'isAdmin' in parsedUserData) {
-          return parsedUserData as UserData;
-        }
-      } catch (parseError) {
-        console.error(`Error parsing user data string for ${email}:`, parseError);
-      }
-    }
-    
-    // Normal case: userData is already an object
-    if (typeof userData === 'object' && userData !== null && 
+    // Validate the data has at least email and isAdmin
+    if (typeof userData === 'object' && 
         'email' in userData && 
         'isAdmin' in userData) {
       return userData as UserData;
     }
     
-    // If we reach here, the data format is invalid
-    console.warn(`Invalid user data format for ${email}:`, userData);
-    
-    // For admins, we'll create valid data
-    if (email.toLowerCase() === 'burke.cates@gmail.com') {
-      const fixedUserData: UserData = {
-        email: email,
-        isAdmin: true,
-        displayName: "Admin",
-        uid: null,
-        lastLogin: null,
-        createdAt: new Date().toISOString()
-      };
-      
-      // Save the fixed data
-      await saveUserData(email, fixedUserData);
-      console.log(`Fixed admin user data for ${email}`);
-      return fixedUserData;
-    }
-    
+    console.warn(`Invalid user data format for ${email}`);
     return null;
   } catch (error) {
     console.error(`Error getting user data for ${email}:`, error);
