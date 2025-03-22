@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Playback from "@/pages/playback";
 import Remote from "@/pages/remote";
+import AdminPage from "@/pages/admin";
 import { WebSocketProvider } from "./lib/websocket";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./lib/auth-context";
@@ -58,6 +59,9 @@ function Router() {
       </Route>
       <Route path="/remote">
         <ProtectedRoute component={Remote} />
+      </Route>
+      <Route path="/admin">
+        <ProtectedRoute component={AdminPage} />
       </Route>
       <Route path="/invite/:code">
         {(params) => <InvitePage code={params.code} />}

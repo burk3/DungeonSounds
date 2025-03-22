@@ -19,10 +19,11 @@ export default function AdminPanel({ queryClient }: AdminPanelProps) {
 
   // Fetch existing invite codes
   const { 
-    data: inviteCodes, 
+    data: inviteCodes = [], 
     isLoading: isLoadingCodes,
     isError: isErrorCodes,
-    error: errorCodes
+    error: errorCodes,
+    refetch: refetchInviteCodes
   } = useQuery<InviteCode[]>({
     queryKey: ['/api/admin/invite-codes'],
     refetchInterval: false,
