@@ -504,7 +504,7 @@ export class MemStorage implements IStorage {
 
   async createAllowedUser(user: InsertAllowedUser): Promise<AllowedUser> {
     // Check if user already exists in database
-    const existingUserData = await getUserData(user.email);
+    const existingUserData = await getUser(user.email);
 
     if (existingUserData) {
       // User exists, convert to AllowedUser format
@@ -531,7 +531,7 @@ export class MemStorage implements IStorage {
       createdAt: now.toISOString(),
     };
 
-    await saveUserData(user.email, userData);
+    await saveUser(user.email, userData);
 
     // Create in-memory version
     const id = this.currentUserId++;
@@ -563,7 +563,7 @@ export class MemStorage implements IStorage {
     this.allowedUsers.set(id, updatedUser);
 
     // Update in database
-    const userData = await getUserData(user.email);
+    const userData = await getUser(user.email);
 
     if (userData) {
       // Update the database copy
@@ -572,7 +572,7 @@ export class MemStorage implements IStorage {
         isAdmin: updatedUser.isAdmin,
       };
 
-      await saveUserData(user.email, updatedUserData);
+      await saveUser(user.email, updatedUserData);
       console.log(`Updated user data for: ${user.email}`);
     } else {
       // Create new record in database
@@ -584,7 +584,7 @@ export class MemStorage implements IStorage {
           : new Date().toISOString(),
       };
 
-      await saveUserData(updatedUser.email, newUserData);
+      await saveUser(updatedUser.email, newUserData);
     }
 
     return updatedUser;
@@ -606,7 +606,7 @@ export class MemStorage implements IStorage {
     if (!email) return false;
 
     // Check if user exists in database
-    const userData = await getUserData(email);
+    const userData = await getUser(email);
     return !!userData;
   }
 
@@ -614,7 +614,7 @@ export class MemStorage implements IStorage {
     if (!email) return false;
 
     // Check if user exists and is admin
-    const userData = await getUserData(email);
+    const userData = await getUser(email);
     
     if (userData && userData.isAdmin) {
       console.log("Admin privileges confirmed for:", email);
