@@ -696,9 +696,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = req.params.filename;
       const objectStorage = storage.getObjectStorage();
       
+      // Create the full object key with the bucket prefix
+      const objectKey = `${BUCKET_NAME}/${filename}`;
+      
       // Check if file exists in object storage by attempting to get info
       // The exists method returns a Result<boolean>
-      const existsResult = await objectStorage.exists(filename);
+      const existsResult = await objectStorage.exists(objectKey);
       
       if (!existsResult.ok || !existsResult.value) {
         return res.status(404).json({ message: 'Audio file not found' });
@@ -717,7 +720,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       try {
         // Get a readable stream from the object storage
-        const stream = await objectStorage.downloadAsStream(filename);
+        const stream = await objectStorage.downloadAsStream(objectKey);
         
         // Pipe the stream to the response
         stream.pipe(res);

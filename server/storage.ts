@@ -234,16 +234,19 @@ export class MemStorage implements IStorage {
     try {
       // Delete from object storage if we have a filename
       if (sound.filename) {
-        const deleteResult = await objectStorage.delete(sound.filename);
+        // Include the bucket name as a prefix to the filename
+        const objectKey = `${BUCKET_NAME}/${sound.filename}`;
+        
+        const deleteResult = await objectStorage.delete(objectKey);
 
         if (!deleteResult.ok) {
           console.error(
-            `Failed to delete sound file from storage: ${sound.filename}`,
+            `Failed to delete sound file from storage: ${objectKey}`,
             deleteResult.error,
           );
           // Continue with removal from in-memory collection even if bucket deletion fails
         } else {
-          console.log(`Deleted sound file from storage: ${sound.filename}`);
+          console.log(`Deleted sound file from storage: ${objectKey}`);
           
           // Also delete metadata from database
           await deleteSoundMetadata(sound.filename);
@@ -332,19 +335,25 @@ export class MemStorage implements IStorage {
 
     try {
       // Upload the file to Object Storage
+      // Include the bucket name as a prefix to the filename (this is a common pattern)
+      const objectKey = `${BUCKET_NAME}/${filename}`;
+      
       const uploadResult = await objectStorage.uploadFromStream(
-        filename,
-        readableStream,
+        objectKey,
+        readableStream
       );
 
-      if (!uploadResult?.ok) {
-        console.error(
-          `Failed to upload file: ${filename}`,
-          uploadResult?.error,
-        );
-        throw new Error(
-          `Failed to upload file: ${uploadResult?.error || "Unknown error"}`,
-        );
+      // Handle different response structures to make this more robust
+      if (typeof uploadResult === 'object' && uploadResult !== null) {
+        if ('ok' in uploadResult && !uploadResult.ok) {
+          console.error(
+            `Failed to upload file: ${filename}`,
+            'error' in uploadResult ? uploadResult.error : 'Unknown error'
+          );
+          throw new Error(
+            `Failed to upload file: ${'error' in uploadResult ? uploadResult.error : 'Unknown error'}`
+          );
+        }
       }
       
       // Save metadata to database
