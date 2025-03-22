@@ -222,6 +222,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // WebSocket connection handler
   wss.on('connection', (ws: WebSocket) => {
     let clientType: 'playback' | 'remote' | null = null;
+    console.log('New WebSocket client connected');
+    
+    // Set up a ping interval to keep the connection alive
+    const pingInterval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          // Send a ping to keep the connection alive
+          ws.ping();
+        } catch (error) {
+          console.error('Error sending ping:', error);
+        }
+      }
+    }, 30000); // Send a ping every 30 seconds
     
     ws.on('message', async (message: string) => {
       try {
@@ -388,12 +401,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     // Handle client disconnection
     ws.on('close', () => {
+      // Clear the ping interval to prevent memory leaks
+      clearInterval(pingInterval);
+      
       if (clientType === 'playback') {
         clients.playback.delete(ws);
-        console.log('Playback client disconnected');
+        console.log('Playback client disconnected (cleanup complete)');
       } else if (clientType === 'remote') {
         clients.remote.delete(ws);
-        console.log('Remote client disconnected');
+        console.log('Remote client disconnected (cleanup complete)');
+      } else {
+        console.log('Unknown client disconnected (cleanup complete)');
       }
     });
   });

@@ -23,8 +23,12 @@ function WebSocketProviderComponent({ children }) {
 
   // Connect to WebSocket
   useEffect(() => {
+    // Track connection attempts to implement exponential backoff
+    let connectionAttempts = 0;
+    const maxReconnectDelay = 30000; // 30 seconds maximum delay
+    
     const connectWebSocket = () => {
-      console.log("Attempting to connect WebSocket...");
+      console.log(`Attempting to connect WebSocket (attempt ${connectionAttempts + 1})...`);
       
       // Close any existing connection
       if (socketRef.current) {
@@ -45,9 +49,22 @@ function WebSocketProviderComponent({ children }) {
         const socket = new WebSocket(wsUrl);
         socketRef.current = socket;
 
+        // Setup a connection timeout
+        const connectionTimeout = setTimeout(() => {
+          if (socket.readyState !== WebSocket.OPEN) {
+            console.log("WebSocket connection timeout");
+            socket.close();
+          }
+        }, 10000); // 10 second connection timeout
+
         socket.onopen = () => {
           console.log("WebSocket connection established");
           setConnected(true);
+          // Reset connection attempts counter on successful connection
+          connectionAttempts = 0;
+          
+          // Clear the connection timeout
+          clearTimeout(connectionTimeout);
           
           // Send connect message with client type
           const clientType = window.location.pathname.includes("playback") 
@@ -81,26 +98,45 @@ function WebSocketProviderComponent({ children }) {
           }
         };
 
-        socket.onclose = () => {
+        socket.onclose = (event) => {
           setConnected(false);
-          console.log("WebSocket connection closed");
-          toast({
-            title: "Disconnected",
-            description: "Lost connection to the soundboard",
-            variant: "destructive",
-          });
+          clearTimeout(connectionTimeout);
           
-          // Try to reconnect after a delay
-          setTimeout(connectWebSocket, 3000);
+          console.log(`WebSocket connection closed with code ${event.code}, reason: ${event.reason}`);
+          
+          // Only show toast if this wasn't a normal closure
+          if (event.code !== 1000) {
+            toast({
+              title: "Disconnected",
+              description: "Lost connection to the soundboard",
+              variant: "destructive",
+            });
+          }
+          
+          // Implement exponential backoff for reconnection attempts
+          connectionAttempts++;
+          const baseDelay = 1000; // Start with 1s delay
+          const reconnectDelay = Math.min(
+            maxReconnectDelay, 
+            Math.random() * baseDelay * Math.pow(1.5, connectionAttempts)
+          );
+          
+          console.log(`Reconnecting in ${Math.round(reconnectDelay / 1000)} seconds...`);
+          
+          // Try to reconnect after a delay with exponential backoff
+          setTimeout(connectWebSocket, reconnectDelay);
         };
 
         socket.onerror = (error) => {
           console.error("WebSocket error:", error);
-          toast({
-            title: "Connection Error",
-            description: "Failed to connect to the soundboard",
-            variant: "destructive",
-          });
+          // Don't show multiple error toasts - the onclose handler will also fire
+          if (socket.readyState !== WebSocket.CLOSING && socket.readyState !== WebSocket.CLOSED) {
+            toast({
+              title: "Connection Error",
+              description: "Connection to the soundboard encountered an error",
+              variant: "destructive",
+            });
+          }
         };
 
         socket.onmessage = (event) => {
