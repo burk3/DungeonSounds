@@ -2,15 +2,15 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { apiRequest } from './queryClient';
 
 // Define user type based on Replit Auth
-type User = {
+interface User {
   id?: string;
   name?: string;
   bio?: string;
   url?: string;
   profileImage?: string;
-  roles?: string[];
-  teams?: string[];
-};
+  roles?: Array<string>;
+  teams?: Array<string>;
+}
 
 interface AuthContextType {
   user: User | null;

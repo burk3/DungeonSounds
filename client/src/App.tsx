@@ -8,6 +8,7 @@ import Remote from "@/pages/remote";
 import { WebSocketProvider } from "./lib/websocket";
 import { AuthProvider } from "./lib/auth";
 import { useEffect } from "react";
+import Navbar from "@/components/navbar";
 
 function Router() {
   const [location, setLocation] = useLocation();
@@ -20,11 +21,16 @@ function Router() {
   }, [location, setLocation]);
 
   return (
-    <Switch>
-      <Route path="/playback" component={Playback} />
-      <Route path="/remote" component={Remote} />
-      <Route component={NotFound} />
-    </Switch>
+    <div className="flex flex-col min-h-screen bg-gradient-to-br from-neutral-900 to-stone-900">
+      <Navbar />
+      <main className="flex-1 p-4">
+        <Switch>
+          <Route path="/playback" component={Playback} />
+          <Route path="/remote" component={Remote} />
+          <Route component={NotFound} />
+        </Switch>
+      </main>
+    </div>
   );
 }
 

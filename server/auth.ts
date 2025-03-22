@@ -3,15 +3,15 @@ import { getUserInfo } from '@replit/repl-auth';
 import { Session } from 'express-session';
 
 // Define the user type based on Replit Auth's UserInfo interface
-type User = {
+interface User {
   id?: string;
   name?: string;
   bio?: string;
   url?: string;
   profileImage?: string;
-  roles?: string[];
-  teams?: Array<{ name: string; url: string }>;
-};
+  roles?: Array<string>;
+  teams?: Array<string>;
+}
 
 declare global {
   namespace Express {
