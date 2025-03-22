@@ -6,18 +6,13 @@ import { z } from "zod";
 export const allowedUsers = pgTable("allowed_users", {
   id: serial("id").primaryKey(),
   email: text("email").notNull().unique(),
-  displayName: text("display_name"),
   isAdmin: boolean("is_admin").default(false).notNull(),
-  lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").defaultNow(),
-  uid: text("uid").unique(), // Firebase UID
 });
 
 export const insertAllowedUserSchema = createInsertSchema(allowedUsers).pick({
   email: true,
-  displayName: true,
   isAdmin: true,
-  uid: true,
 });
 
 export type InsertAllowedUser = z.infer<typeof insertAllowedUserSchema>;

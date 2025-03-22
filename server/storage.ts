@@ -31,9 +31,6 @@ interface SoundMetadata {
 interface UserData {
   email: string;
   isAdmin: boolean;
-  displayName?: string | null;
-  uid?: string | null;
-  lastLogin?: string | null;
   createdAt?: string; // ISO date string
 }
 
@@ -238,10 +235,7 @@ export class MemStorage implements IStorage {
       const adminUser: AllowedUser = {
         id,
         email: userData.email,
-        displayName: userData.displayName || null,
         isAdmin: true, // Ensure admin flag
-        uid: userData.uid || null,
-        lastLogin: userData.lastLogin ? new Date(userData.lastLogin) : null,
         createdAt: userData.createdAt ? new Date(userData.createdAt) : new Date(),
       };
       
@@ -252,9 +246,6 @@ export class MemStorage implements IStorage {
       const newUserData: UserData = {
         email: adminEmail,
         isAdmin: true,
-        displayName: "Admin",
-        uid: null,
-        lastLogin: null,
         createdAt: now.toISOString(),
       };
       
@@ -265,10 +256,7 @@ export class MemStorage implements IStorage {
       const adminUser: AllowedUser = {
         id,
         email: adminEmail,
-        displayName: "Admin",
         isAdmin: true,
-        uid: null,
-        lastLogin: null,
         createdAt: now,
       };
       
