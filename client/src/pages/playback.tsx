@@ -5,6 +5,7 @@ import { useWebSocket } from "@/lib/websocket";
 import { useSound } from "@/lib/useSound";
 import NowPlaying from "@/components/now-playing";
 import SoundCard from "@/components/sound-card";
+import Header from "@/components/header";
 
 export default function Playback() {
   const { connected, currentSound, volume, stopSound, sendMessage } = useWebSocket();
@@ -76,33 +77,30 @@ export default function Playback() {
   }, [currentSound, volume, play, stop, stopSound]);
   
   return (
-    <div className="w-full min-h-screen bg-gray-900">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-amber-900 to-amber-700 text-amber-100 shadow-lg">
-        <div className="container mx-auto px-4 py-5 flex justify-between items-center">
-          <div className="flex items-center">
-            <span className="material-icons text-3xl mr-3 text-amber-300" aria-hidden="true">equalizer</span>
-            <h1 className="font-heading text-2xl font-bold">D&D Soundboard: Playback</h1>
-          </div>
-          <div className="flex items-center">
-            <div className={`${connected ? 'bg-green-800/60' : 'bg-red-900/60'} rounded-full px-4 py-2 flex items-center transition-colors`}>
-              <span className="material-icons mr-2" aria-hidden="true">
-                {connected ? "wifi" : "wifi_off"}
-              </span>
-              <span>{connected ? "Connected" : "Disconnected"}</span>
-            </div>
+    <div className="w-full min-h-screen bg-[#2A2523]">
+      {/* Header with Auth */}
+      <Header />
+      
+      {/* Connection Status */}
+      <div className="bg-[#322B28] py-2 border-b border-amber-900">
+        <div className="container mx-auto px-4 flex justify-end">
+          <div className={`${connected ? 'bg-green-900/40' : 'bg-red-900/40'} rounded-full px-3 py-1 flex items-center text-sm transition-colors`}>
+            <span className="material-icons mr-1 text-sm" aria-hidden="true">
+              {connected ? "wifi" : "wifi_off"}
+            </span>
+            <span className="text-amber-200">{connected ? "Connected" : "Disconnected"}</span>
           </div>
         </div>
-      </header>
+      </div>
       
       {/* Now Playing Bar */}
       <NowPlaying />
       
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
-        <div className="bg-gray-800 rounded-lg shadow-md overflow-hidden border border-amber-800/40">
+        <div className="bg-[#32291F] rounded-lg shadow-md overflow-hidden border border-amber-800/40">
           <div className="p-6">
-            <h2 className="font-heading text-2xl font-bold text-amber-200 mb-6">Sound Library</h2>
+            <h2 className="text-2xl font-bold text-amber-300 mb-6">Sound Library</h2>
             
             {/* Loading State */}
             {isLoading && (

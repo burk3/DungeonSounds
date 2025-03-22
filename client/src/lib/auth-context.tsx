@@ -40,16 +40,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check if the user is allowed
   const checkUserAllowed = async (email: string) => {
     try {
-      const response = await apiRequest<{ allowed: boolean; isAdmin: boolean }>({
+      const response = await apiRequest({
         url: '/api/auth/check',
         method: 'POST',
         body: { email }
       });
       
-      setIsAllowed(response.allowed);
-      setIsAdmin(response.isAdmin);
+      const data = response as { allowed: boolean; isAdmin: boolean };
+      setIsAllowed(data.allowed);
+      setIsAdmin(data.isAdmin);
       
-      return response.allowed;
+      return data.allowed;
     } catch (error) {
       console.error('Error checking user allowlist:', error);
       setIsAllowed(false);
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Handle logout
   const logout = async () => {
     try {
+      // Using the imported signOut function from firebase.ts
       await auth.signOut();
       setUser(null);
       setIdToken(null);
