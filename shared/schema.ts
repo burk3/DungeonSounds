@@ -39,7 +39,6 @@ export const sounds = pgTable("sounds", {
   name: text("name").notNull(),
   filename: text("filename").notNull(),
   category: text("category").notNull(),
-  duration: integer("duration"), // in seconds
   uploader: text("uploader"), // username of the uploader
   uploadedAt: timestamp("uploaded_at").defaultNow(),
 });
@@ -48,7 +47,6 @@ export const insertSoundSchema = createInsertSchema(sounds).pick({
   name: true,
   filename: true,
   category: true,
-  duration: true,
   uploader: true,
 });
 

@@ -24,7 +24,6 @@ const db = new Database();
 // Define metadata structure
 interface SoundMetadata {
   uploader: string | null;
-  duration: number | null; // in seconds
   uploadedAt: string; // ISO date string
 }
 
@@ -97,7 +96,7 @@ export interface IStorage {
   isUserAdmin(email: string): Promise<boolean>;
 
   // File operations
-  saveFile(buffer: Buffer, originalname: string, uploader?: string | null, duration?: number | null): Promise<string>;
+  saveFile(buffer: Buffer, originalname: string, uploader?: string | null): Promise<string>;
   getFilePath(filename: string): string;
   getObjectStorage(): any; // Exposes the Replit Object Storage client
 }
