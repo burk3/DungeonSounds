@@ -8,7 +8,6 @@ import SoundCard from "@/components/sound-card";
 import CategoryTabs from "@/components/category-tabs";
 
 export default function Playback() {
-  const [activeCategory, setActiveCategory] = useState<SoundCategory>("ambience");
   const { connected, currentSound, volume } = useWebSocket();
   
   // Initialize audio playback
@@ -19,8 +18,8 @@ export default function Playback() {
     queryKey: ["/api/sounds"],
   });
   
-  // Filter sounds by category
-  const filteredSounds = sounds?.filter(sound => sound.category === activeCategory) || [];
+  // Use all sounds without filtering by category
+  const filteredSounds = sounds || [];
   
   // Play sound when currentSound changes
   useEffect(() => {
@@ -59,13 +58,6 @@ export default function Playback() {
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="p-6">
             <h2 className="font-heading text-2xl font-bold text-gray-900 mb-6">Sound Library</h2>
-            
-            {/* Sound Categories Tabs */}
-            <CategoryTabs
-              categories={SOUND_CATEGORIES}
-              activeCategory={activeCategory}
-              setActiveCategory={setActiveCategory}
-            />
             
             {/* Loading State */}
             {isLoading && (
