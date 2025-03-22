@@ -47,12 +47,7 @@ export default function SoundCard({ sound, isPlaying }: SoundCardProps) {
             Uploaded by: {sound.uploader || "Anonymous"}
           </p>
         </div>
-        <div className="flex space-x-2">
-          {/* Duration is not currently available in our Sound type */}
-          <span className="inline-block bg-gray-800 text-amber-200 text-xs px-2 py-1 rounded">
-            Sound Effect
-          </span>
-        </div>
+        {/* Category badges removed as requested */}
       </div>
       <div className="mt-4 flex justify-between items-center">
         <div className="flex items-center text-sm text-amber-200/60">

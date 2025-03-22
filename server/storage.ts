@@ -96,9 +96,9 @@ async function getSoundMetadata(
     console.log(`Fixing invalid metadata format for ${filename}`);
     const fixedMetadata: SoundMetadata = {
       uploader: typeof metadata === 'object' && metadata && 'uploader' in metadata ? 
-        metadata.uploader : null,
+        (metadata.uploader as string | null) : null,
       uploadedAt: typeof metadata === 'object' && metadata && 'uploadedAt' in metadata ? 
-        metadata.uploadedAt : new Date().toISOString()
+        (metadata.uploadedAt as string) : new Date().toISOString()
     };
     
     // Save the corrected metadata
