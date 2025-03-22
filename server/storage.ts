@@ -135,9 +135,20 @@ async function saveUserData(email: string, userData: UserData): Promise<void> {
 async function getUserData(email: string): Promise<UserData | null> {
   try {
     const key = getUserKey(email);
-    const userData = await db.get(key);
+    const result = await db.get(key);
 
-    if (!userData) return null;
+    if (!result) return null;
+
+    // Handle the Replit Database format which returns {ok: true, value: {...}}
+    let userData: any;
+    
+    if (typeof result === "object" && "ok" in result && result.ok === true && "value" in result) {
+      // Extract actual user data from the "value" property
+      userData = result.value;
+    } else {
+      // For backward compatibility, try to use the result directly
+      userData = result;
+    }
 
     // Validate the data has at least email and isAdmin
     if (
@@ -668,13 +679,25 @@ export class MemStorage implements IStorage {
 
     // First check if we have the admin user hardcoded
     if (email.toLowerCase() === "burke.cates@gmail.com") {
-      console.log("Admin privileges granted to:", email);
-      return true;
+      console.log("Admin user detected:", email);
+      // We still need to check the database to be consistent
     }
 
     // Check if user exists and is admin
     const userData = await getUserData(email);
-    return userData ? userData.isAdmin : false;
+    
+    if (userData && userData.isAdmin) {
+      console.log("Admin privileges confirmed for:", email);
+      return true;
+    }
+    
+    // Special case - always grant admin privileges to the main admin
+    if (email.toLowerCase() === "burke.cates@gmail.com") {
+      console.log("Admin privileges granted to hardcoded admin:", email);
+      return true;
+    }
+    
+    return false;
   }
 
   // File operations
