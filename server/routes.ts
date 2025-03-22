@@ -477,39 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Add a new allowed user (admin only)
-  app.post('/api/admin/allowed-users', verifyToken, requireAdmin, async (req, res) => {
-    try {
-      const { email, isAdmin } = req.body;
-      
-      try {
-        // Validate input
-        const parsedData = insertAllowedUserSchema.parse({
-          email,
-          isAdmin: isAdmin === true
-        });
-        
-        // Check if user already exists
-        const existingUser = await storage.getAllowedUserByEmail(email);
-        if (existingUser) {
-          return res.status(409).json({ message: 'User already exists' });
-        }
-        
-        // Create the user
-        const user = await storage.createAllowedUser(parsedData);
-        res.status(201).json(user);
-      } catch (error) {
-        if (error instanceof ZodError) {
-          const validationError = fromZodError(error);
-          return res.status(400).json({ message: validationError.message });
-        }
-        throw error;
-      }
-    } catch (err) {
-      console.error('Error creating allowed user:', err);
-      res.status(500).json({ message: 'Error creating allowed user' });
-    }
-  });
+  // Note: The add user endpoint is now handled at /api/admin/add-user
   
   // Delete an allowed user (admin only)
   app.delete('/api/admin/allowed-users/:id', verifyToken, requireAdmin, async (req: AuthRequest, res) => {
@@ -681,20 +649,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Check if a sound title already exists - for validation during upload
-  app.get('/api/sounds/check-title-exists', verifyToken, async (req: AuthRequest, res) => {
-    try {
-      const title = req.query.title as string;
-      if (!title) {
-        return res.status(400).json({ message: 'Title parameter is required' });
-      }
-      const exists = await storage.soundTitleExists(title);
-      res.json({ exists });
-    } catch (err) {
-      console.error('Error checking sound title:', err);
-      res.status(500).json({ message: 'Failed to check sound title' });
-    }
-  });
+  // Note: Title check is already handled by the first check-title-exists endpoint
   
   // Get sound by ID
   app.get('/api/sounds/:id', verifyToken, async (req: AuthRequest, res) => {
