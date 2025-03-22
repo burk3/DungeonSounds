@@ -43,7 +43,7 @@ export default function InvitePage({ code }: InvitePageProps) {
         setIsValidating(true);
         
         const response = await apiRequest<ValidateInviteCodeResponse>({
-          url: `/api/invite/validate/${code}`,
+          url: `/api/invite/${code}/validate`,
           method: "GET",
         });
         
@@ -68,8 +68,13 @@ export default function InvitePage({ code }: InvitePageProps) {
       setIsValidating(true);
       
       await apiRequest({
-        url: `/api/invite/redeem/${code}`,
+        url: `/api/invite/${code}/redeem`,
         method: "POST",
+        body: {
+          email: window.localStorage.getItem('userEmail') || '',
+          displayName: window.localStorage.getItem('userName') || '',
+          uid: window.localStorage.getItem('userUid') || ''
+        }
       });
       
       toast({
