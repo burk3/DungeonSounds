@@ -35,7 +35,16 @@ async function getSoundMetadata(filename: string): Promise<SoundMetadata | null>
     const key = getSoundMetadataKey(filename);
     const metadata = await db.get(key);
     if (!metadata) return null;
-    return metadata as SoundMetadata;
+    
+    // Verify the returned object has the required properties
+    if (typeof metadata === 'object' && 
+        'uploader' in metadata && 
+        'uploadedAt' in metadata) {
+      return metadata as SoundMetadata;
+    }
+    
+    console.warn(`Invalid metadata format for ${filename}`);
+    return null;
   } catch (error) {
     console.error(`Error getting metadata for ${filename}:`, error);
     return null;

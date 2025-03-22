@@ -18,7 +18,7 @@ import {
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { getAudioDurationInSeconds } from "get-audio-duration";
+// import { getAudioDurationInSeconds } from "get-audio-duration";
 import { ZodError } from "zod";
 import { fromZodError } from "zod-validation-error";
 // No longer using firebase-admin due to initialization issues
@@ -572,24 +572,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           name,
           category,
           uploader: uploader || 'Anonymous',
-          filename: '',  // Will be set after file is saved
-          duration: 0    // Will be calculated
+          filename: ''  // Will be set after file is saved
         });
         
         // Save the file
         const filename = await storage.saveFile(req.file.buffer, req.file.originalname);
         
-        // Get file path to calculate duration
-        const filePath = storage.getFilePath(filename);
-        
-        // Calculate audio duration
-        const duration = Math.ceil(await getAudioDurationInSeconds(filePath));
-        
         // Create the sound entry
         const sound = await storage.createSound({
           ...parsedData,
-          filename,
-          duration
+          filename
         });
         
         // Notify all clients about the new sound
