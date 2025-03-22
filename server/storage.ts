@@ -209,11 +209,37 @@ async function getUserData(email: string): Promise<UserData | null> {
     
     if (!userData) return null;
     
+    // Convert string data to object if needed
+    let parsedUserData = userData;
+    if (typeof userData === 'string') {
+      try {
+        parsedUserData = JSON.parse(userData);
+      } catch (e) {
+        console.warn(`Failed to parse user data string for ${email}`);
+      }
+    }
+    
     // Validate the data has at least email and isAdmin
-    if (typeof userData === 'object' && 
-        'email' in userData && 
-        'isAdmin' in userData) {
-      return userData as UserData;
+    if (typeof parsedUserData === 'object' && 
+        'email' in parsedUserData && 
+        'isAdmin' in parsedUserData) {
+      return parsedUserData as UserData;
+    }
+    
+    // If validation fails, but we know this is the admin user, create it properly
+    if (email.toLowerCase() === "burke.cates@gmail.com") {
+      console.log(`Recreating admin user data for ${email}`);
+      // Create new admin user data
+      const adminData: UserData = {
+        email: email,
+        isAdmin: true,
+        displayName: "Admin",
+        createdAt: new Date().toISOString()
+      };
+      
+      // Save the corrected data
+      await saveUserData(email, adminData);
+      return adminData;
     }
     
     console.warn(`Invalid user data format for ${email}`);

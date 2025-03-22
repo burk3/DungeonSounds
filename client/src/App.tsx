@@ -11,7 +11,7 @@ import { AuthProvider, useAuth } from "./lib/auth-context";
 import Login from "./components/login";
 import RestrictedAccess from "./components/restricted-access";
 import { Loader2 } from "lucide-react";
-import InvitePage from "./pages/invite";
+import InvitePage from "@/pages/invite";
 
 // Protected route component
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType, [key: string]: any }) {
