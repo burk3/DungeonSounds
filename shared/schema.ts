@@ -23,27 +23,6 @@ export const insertAllowedUserSchema = createInsertSchema(allowedUsers).pick({
 export type InsertAllowedUser = z.infer<typeof insertAllowedUserSchema>;
 export type AllowedUser = typeof allowedUsers.$inferSelect;
 
-// Invite code schema
-export type InviteCode = {
-  code: string;
-  createdBy: string; // Email of admin who created it
-  createdAt: string; // ISO date string
-};
-
-export type InviteRequestPayload = {
-  // Empty request - just needs admin authentication
-};
-
-export type InviteResponsePayload = {
-  code: string;
-  inviteUrl: string;
-};
-
-export type ValidateInviteCodeResponse = {
-  valid: boolean;
-  message?: string;
-};
-
 // User roles
 export enum UserRole {
   USER = 'user',

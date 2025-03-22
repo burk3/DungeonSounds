@@ -100,15 +100,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIdToken(token);
           setUser(firebaseUser);
           
-          // Store user information in localStorage for invite redemption
-          if (firebaseUser.email) {
-            localStorage.setItem('userEmail', firebaseUser.email);
-          }
-          if (firebaseUser.displayName) {
-            localStorage.setItem('userName', firebaseUser.displayName);
-          }
-          localStorage.setItem('userUid', firebaseUser.uid);
-          
           // Check if user is allowed
           if (firebaseUser.email) {
             const allowed = await checkUserAllowed(firebaseUser.email);
@@ -119,8 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setIsAuthenticated(true);
             } else {
               // If not allowed, sign out
-              // await logout(); - Don't logout here to allow invite redemption
-              setIsAuthenticated(true); // Keep authenticated but not allowed
+              await logout();
             }
           }
         } else {
@@ -130,11 +120,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsAuthenticated(false);
           setIsAllowed(false);
           setIsAdmin(false);
-          
-          // Clear localStorage items
-          localStorage.removeItem('userEmail');
-          localStorage.removeItem('userName');
-          localStorage.removeItem('userUid');
         }
       } catch (error) {
         console.error('Auth state change error:', error);

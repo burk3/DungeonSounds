@@ -6,13 +6,11 @@ import {
   allowedUsers,
   type AllowedUser,
   type InsertAllowedUser,
-  type InviteCode,
 } from "@shared/schema";
 import path from "path";
 import { Client } from "@replit/object-storage";
 import { Readable } from "stream";
 import Database from "@replit/database";
-import crypto from "crypto";
 
 // Initialize Replit Object Storage
 const objectStorage = new Client({
@@ -121,175 +119,6 @@ async function getAllSoundKeys(): Promise<string[]> {
   }
 }
 
-// Invite code helper functions
-const getInviteCodeKey = (code: string) => `invite:${code}`;
-
-async function generateInviteCode(adminEmail: string): Promise<string> {
-  // Generate a random invite code (8 alphanumeric characters)
-  const code = crypto.randomBytes(4).toString('hex');
-  const now = new Date();
-  
-  // Store the invite code in the database
-  const inviteData: InviteCode = {
-    code,
-    createdBy: adminEmail,
-    createdAt: now.toISOString()
-  };
-  
-  try {
-    await db.set(getInviteCodeKey(code), inviteData);
-    console.log(`Created invite code: ${code} by ${adminEmail}`);
-    return code;
-  } catch (error) {
-    console.error(`Error generating invite code: ${error}`);
-    throw new Error('Failed to generate invite code');
-  }
-}
-
-async function validateInviteCode(code: string): Promise<boolean> {
-  try {
-    const key = getInviteCodeKey(code);
-    const inviteData = await db.get(key);
-    return !!inviteData;
-  } catch (error) {
-    console.error(`Error validating invite code: ${error}`);
-    return false;
-  }
-}
-
-async function deleteInviteCode(code: string): Promise<boolean> {
-  try {
-    const key = getInviteCodeKey(code);
-    await db.delete(key);
-    console.log(`Deleted invite code: ${code}`);
-    return true;
-  } catch (error) {
-    console.error(`Error deleting invite code: ${error}`);
-    return false;
-  }
-}
-
-async function getAllInviteCodes(): Promise<InviteCode[]> {
-  try {
-    const prefix = "invite:";
-    const listResult = await db.list(prefix);
-    const inviteCodes: InviteCode[] = [];
-    
-    console.log("List result:", listResult);
-    
-    // Check if the result has expected format
-    if (!listResult || typeof listResult !== 'object') {
-      console.warn("Unexpected list result format:", listResult);
-      return [];
-    }
-    
-    // Replit DB response has an 'ok' property and 'value' for successful responses
-    if (listResult.ok === false) {
-      console.warn("List operation failed:", listResult.error);
-      return [];
-    }
-    
-    // Check if the result has a value property which should contain the keys
-    if (!listResult.value || typeof listResult.value !== 'object') {
-      console.warn("List result missing or invalid value:", listResult);
-      return [];
-    }
-    
-    // Get the actual keys
-    const keys = listResult.value;
-    console.log("Invite code keys:", keys);
-    
-    // Debug: what kind of object is keys?
-    console.log("Keys type:", typeof keys);
-    console.log("Keys instanceof Array:", Array.isArray(keys));
-    
-    // Process each key in the result
-    if (Array.isArray(keys)) {
-      // If keys is an array of strings
-      for (const key of keys) {
-        if (typeof key !== 'string' || !key.startsWith(prefix)) continue;
-        
-        const code = key.substring(prefix.length);
-        await processInviteCode(code, inviteCodes);
-      }
-    } else if (typeof keys === 'object') {
-      // If keys is an object with key-value pairs
-      for (const key of Object.keys(keys)) {
-        if (!key.startsWith(prefix)) continue;
-        
-        const code = key.substring(prefix.length);
-        await processInviteCode(code, inviteCodes);
-      }
-    }
-    
-    console.log(`Found ${inviteCodes.length} invite codes`);
-    return inviteCodes;
-  } catch (error) {
-    console.error("Error listing invite codes:", error);
-    return [];
-  }
-}
-
-// Helper function to process a single invite code
-async function processInviteCode(code: string, inviteCodes: InviteCode[]) {
-  console.log(`Processing invite code: ${code}`);
-  
-  try {
-    const key = getInviteCodeKey(code);
-    const rawInviteData = await db.get(key);
-    
-    if (!rawInviteData) {
-      console.warn(`No data found for invite code: ${code}`);
-      return;
-    }
-    
-    // Parse string data if needed
-    let parsedData = rawInviteData;
-    if (typeof rawInviteData === 'string') {
-      try {
-        parsedData = JSON.parse(rawInviteData);
-      } catch (e) {
-        console.warn(`Failed to parse invite data for ${code}`);
-      }
-    }
-    
-    // Verify it has the expected structure
-    if (typeof parsedData === 'object') {
-      // If this is a generated invite code (has all required fields)
-      if ('code' in parsedData && 'createdBy' in parsedData && 'createdAt' in parsedData) {
-        const inviteCode: InviteCode = {
-          code: String(parsedData.code),
-          createdBy: String(parsedData.createdBy),
-          createdAt: String(parsedData.createdAt)
-        };
-        
-        inviteCodes.push(inviteCode);
-        console.log(`Added invite code to list: ${inviteCode.code}`);
-      } 
-      // If missing some fields, try to construct from available data + key
-      else if ('createdBy' in parsedData || 'createdAt' in parsedData) {
-        const createdBy = 'createdBy' in parsedData ? String(parsedData.createdBy) : 'Unknown';
-        const createdAt = 'createdAt' in parsedData ? String(parsedData.createdAt) : new Date().toISOString();
-        
-        const inviteCode: InviteCode = {
-          code,
-          createdBy,
-          createdAt
-        };
-        
-        inviteCodes.push(inviteCode);
-        console.log(`Added invite code (partially reconstructed) to list: ${inviteCode.code}`);
-      } else {
-        console.warn(`Invalid invite code data format for ${code}:`, parsedData);
-      }
-    } else {
-      console.warn(`Non-object data for invite code ${code}:`, parsedData);
-    }
-  } catch (error) {
-    console.error(`Error processing invite code ${code}:`, error);
-  }
-}
-
 // User related database functions
 async function saveUserData(email: string, userData: UserData): Promise<void> {
   try {
@@ -308,37 +137,11 @@ async function getUserData(email: string): Promise<UserData | null> {
     
     if (!userData) return null;
     
-    // Convert string data to object if needed
-    let parsedUserData = userData;
-    if (typeof userData === 'string') {
-      try {
-        parsedUserData = JSON.parse(userData);
-      } catch (e) {
-        console.warn(`Failed to parse user data string for ${email}`);
-      }
-    }
-    
     // Validate the data has at least email and isAdmin
-    if (typeof parsedUserData === 'object' && 
-        'email' in parsedUserData && 
-        'isAdmin' in parsedUserData) {
-      return parsedUserData as UserData;
-    }
-    
-    // If validation fails, but we know this is the admin user, create it properly
-    if (email.toLowerCase() === "burke.cates@gmail.com") {
-      console.log(`Recreating admin user data for ${email}`);
-      // Create new admin user data
-      const adminData: UserData = {
-        email: email,
-        isAdmin: true,
-        displayName: "Admin",
-        createdAt: new Date().toISOString()
-      };
-      
-      // Save the corrected data
-      await saveUserData(email, adminData);
-      return adminData;
+    if (typeof userData === 'object' && 
+        'email' in userData && 
+        'isAdmin' in userData) {
+      return userData as UserData;
     }
     
     console.warn(`Invalid user data format for ${email}`);
@@ -393,12 +196,6 @@ export interface IStorage {
   deleteAllowedUser(id: number): Promise<boolean>;
   isUserAllowed(email: string): Promise<boolean>;
   isUserAdmin(email: string): Promise<boolean>;
-
-  // Invite operations
-  createInviteCode(adminEmail: string): Promise<string>;
-  validateInviteCode(code: string): Promise<boolean>;
-  redeemInviteCode(code: string): Promise<boolean>;
-  getInviteCodes(): Promise<InviteCode[]>;
 
   // File operations
   saveFile(buffer: Buffer, originalname: string, uploader?: string | null): Promise<string>;
@@ -971,29 +768,6 @@ export class MemStorage implements IStorage {
   getObjectStorage() {
     // Return the Replit Object Storage client
     return objectStorage;
-  }
-  
-  // Invite code operations
-  async createInviteCode(adminEmail: string): Promise<string> {
-    return generateInviteCode(adminEmail);
-  }
-  
-  async validateInviteCode(code: string): Promise<boolean> {
-    return validateInviteCode(code);
-  }
-  
-  async redeemInviteCode(code: string): Promise<boolean> {
-    const isValid = await validateInviteCode(code);
-    if (!isValid) {
-      return false;
-    }
-    
-    // Delete the invite code after it's been used
-    return deleteInviteCode(code);
-  }
-  
-  async getInviteCodes(): Promise<InviteCode[]> {
-    return getAllInviteCodes();
   }
 }
 

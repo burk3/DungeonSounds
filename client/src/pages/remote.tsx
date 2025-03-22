@@ -5,9 +5,7 @@ import { useWebSocket } from "@/lib/websocket";
 import RemoteSoundCard from "@/components/remote-sound-card";
 import UploadModal from "@/components/upload-modal";
 import Header from "@/components/header";
-import AdminPanel from "@/components/admin-panel"; 
 import { useAuth } from "@/lib/auth-context";
-import { queryClient } from "@/lib/queryClient";
 
 export default function Remote() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -99,13 +97,6 @@ export default function Remote() {
               <span className="material-icons mr-2" aria-hidden="true">file_upload</span>
               Upload New Sound
             </button>
-          </div>
-        )}
-        
-        {/* Admin Panel - only visible to admins */}
-        {isAdmin && !isDeleteMode && (
-          <div className="mb-8">
-            <AdminPanel queryClient={queryClient} />
           </div>
         )}
         

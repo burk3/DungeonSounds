@@ -5,14 +5,12 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Playback from "@/pages/playback";
 import Remote from "@/pages/remote";
-import AdminPage from "@/pages/admin";
 import { WebSocketProvider } from "./lib/websocket";
 import { useEffect } from "react";
 import { AuthProvider, useAuth } from "./lib/auth-context";
 import Login from "./components/login";
 import RestrictedAccess from "./components/restricted-access";
 import { Loader2 } from "lucide-react";
-import InvitePage from "@/pages/invite";
 
 // Protected route component
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType, [key: string]: any }) {
@@ -59,12 +57,6 @@ function Router() {
       </Route>
       <Route path="/remote">
         <ProtectedRoute component={Remote} />
-      </Route>
-      <Route path="/admin">
-        <ProtectedRoute component={AdminPage} />
-      </Route>
-      <Route path="/invite/:code">
-        {(params) => <InvitePage code={params.code} />}
       </Route>
       <Route>
         <NotFound />

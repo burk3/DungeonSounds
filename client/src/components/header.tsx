@@ -76,18 +76,6 @@ export default function Header() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-amber-900/50" />
-              {isAdmin && (
-                <>
-                  <DropdownMenuItem
-                    onClick={() => window.location.href = "/admin"}
-                    className="text-amber-400 focus:bg-amber-900 focus:text-amber-100"
-                  >
-                    <Shield className="mr-2 h-4 w-4" />
-                    <span>Admin Panel</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-amber-900/50" />
-                </>
-              )}
               <DropdownMenuItem
                 onClick={() => logout()}
                 className="text-amber-400 focus:bg-amber-900 focus:text-amber-100"
