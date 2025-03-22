@@ -2,32 +2,19 @@ import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Firebase authenticated users - users that are allowed to access the app
-export const allowedUsers = pgTable("allowed_users", {
+export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  displayName: text("display_name"),
-  isAdmin: boolean("is_admin").default(false).notNull(),
-  lastLogin: timestamp("last_login"),
-  createdAt: timestamp("created_at").defaultNow(),
-  uid: text("uid").unique(), // Firebase UID
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
 });
 
-export const insertAllowedUserSchema = createInsertSchema(allowedUsers).pick({
-  email: true,
-  displayName: true,
-  isAdmin: true,
-  uid: true,
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
 });
 
-export type InsertAllowedUser = z.infer<typeof insertAllowedUserSchema>;
-export type AllowedUser = typeof allowedUsers.$inferSelect;
-
-// User roles
-export enum UserRole {
-  USER = 'user',
-  ADMIN = 'admin'
-}
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
 
 // Sound categories - simplified to just effects
 export const SOUND_CATEGORIES = ["effects"] as const;

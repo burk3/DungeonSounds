@@ -4,7 +4,6 @@ import { Sound } from "@shared/schema";
 import { useWebSocket } from "@/lib/websocket";
 import RemoteSoundCard from "@/components/remote-sound-card";
 import UploadModal from "@/components/upload-modal";
-import Header from "@/components/header";
 
 export default function Remote() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -19,24 +18,30 @@ export default function Remote() {
   const filteredSounds = sounds || [];
   
   return (
-    <div className="w-full min-h-screen bg-[#2A2523] text-amber-100">
-      {/* Header with Auth */}
-      <Header />
-      
-      {/* Connection Status */}
-      <div className="bg-[#322B28] py-2 border-b border-amber-900">
-        <div className="container mx-auto px-4 flex justify-end">
-          <div className={`${connected ? 'bg-green-900/40' : 'bg-red-900/40'} rounded-full px-3 py-1 flex items-center text-sm transition-colors`}>
-            <span className="material-icons mr-1 text-sm" aria-hidden="true">
-              {connected ? "wifi" : "wifi_off"}
-            </span>
-            <span className="text-amber-200">{connected ? "Connected" : "Disconnected"}</span>
+    <div className="w-full min-h-screen bg-stone-800 text-amber-100">
+      {/* Header */}
+      <header className="bg-gradient-to-r from-amber-900 to-amber-700 text-amber-100 shadow-lg border-b border-amber-500/30">
+        <div className="container mx-auto px-4 py-5">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <span className="material-icons text-3xl mr-3 text-amber-300" aria-hidden="true">equalizer</span>
+              <h1 className="font-heading text-2xl font-bold">D&D Soundboard: Remote</h1>
+            </div>
+            <div className="flex items-center">
+              <div className={`${connected ? 'bg-green-600/20' : 'bg-red-600/20'} rounded-full px-4 py-2 flex items-center transition-colors`}>
+                <span className="material-icons mr-2 text-amber-200" aria-hidden="true">
+                  {connected ? "wifi" : "wifi_off"}
+                </span>
+                <span className="sr-only">{connected ? "Connected" : "Disconnected"}</span>
+                <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </header>
       
       {/* Status Bar for showing what's playing - always visible */}
-      <div className="bg-[#2E241F] text-amber-100 p-3 shadow-md border-b border-amber-800/40 min-h-[72px] flex items-center">
+      <div className="bg-stone-900 text-amber-100 p-3 shadow-md border-b border-amber-800/40 h-12 flex items-center">
         <div className="container mx-auto flex items-center">
           {currentSound ? (
             <>
