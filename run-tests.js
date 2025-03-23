@@ -1,5 +1,2 @@
-// Root-level test runner script
-// Run with: node run-tests.js
-
-// Simply calls the tests/run-tests.js script
-require('./tests/run-tests.js');
+// Simple wrapper for tests/run-tests.js that allows running tests from the project root
+require('./tests/run-tests');
