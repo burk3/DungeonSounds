@@ -1,15 +1,16 @@
 // Re-exporting from the JSX file
 import React from 'react';
 import WebSocketProviderComponent, { useWebSocket as useWebSocketOriginal } from "./websocket.jsx";
+import { Sound, WSMessage } from "@shared/schema";
 
 // Re-export with proper types
 export const WebSocketProvider: React.FC<{children: React.ReactNode}> = WebSocketProviderComponent;
 export const useWebSocket: () => {
   connected: boolean;
-  currentSound: any;
+  currentSound: Sound | null;
   volume: number;
   isPlayback: boolean;
-  sendMessage: (message: any) => void;
+  sendMessage: (message: WSMessage) => void;
   playSound: (soundId: number) => void;
   stopSound: () => void;
   setVolume: (volume: number) => void;
