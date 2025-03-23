@@ -1,4 +1,4 @@
-import { Sound } from "@shared/types";
+import { Sound } from "@shared/schema";
 import { formatDistanceToNow } from "date-fns";
 import { useWebSocket } from "@/lib/websocket";
 import { useAuth } from "@/lib/auth-context";

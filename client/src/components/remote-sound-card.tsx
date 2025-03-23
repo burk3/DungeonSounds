@@ -1,4 +1,4 @@
-import { Sound } from "@shared/types";
+import { Sound } from "@shared/schema";
 import { useWebSocket } from "@/lib/websocket";
 import { useAuth } from "@/lib/auth-context";
 import { useState } from "react";
