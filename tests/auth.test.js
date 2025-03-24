@@ -1,5 +1,5 @@
 // Authentication Tests
-import chai from 'chai';
+import * as chai from 'chai';
 import fetch from 'node-fetch';
 
 const { expect } = chai;

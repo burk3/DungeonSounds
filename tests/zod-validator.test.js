@@ -1,18 +1,12 @@
 // Zod Schema Validation Tests
-const { expect } = require('chai');
-const { z } = require('zod');
+import chai from 'chai';
+import { z } from 'zod';
+import * as schemaModule from '../shared/schema.js';
+
+const { expect } = chai;
 
 // Import schemas from shared schema file
-// We need to use CommonJS require for these tests
-// Convert ESM imports to CommonJS compatible format
-let schema;
-try {
-  schema = require('../shared/schema.js');
-} catch (e) {
-  console.error('Error importing schema:', e);
-  // Handle ESM module errors
-  console.warn('This test may need to be converted to ESM format if schema.ts is an ESM-only module');
-}
+let schema = schemaModule;
 
 describe('Zod Schema Validation', function() {
   this.timeout(5000);
@@ -258,12 +252,5 @@ describe('Zod Schema Validation', function() {
   });
 });
 
-if (require.main === module) {
-  // Run tests directly if this file is executed directly
-  const Mocha = require('mocha');
-  const mocha = new Mocha();
-  mocha.addFile(__filename);
-  mocha.run(failures => {
-    process.exitCode = failures ? 1 : 0;
-  });
-}
+// For direct execution in ES modules context
+// We're using the mocha CLI tool through our test runner

@@ -41,7 +41,8 @@ function runTest(testFile) {
   console.log(`${colors.blue}Running ${testName}...${colors.reset}`);
   
   try {
-    execSync(`node ${testFile}`, { stdio: 'inherit' });
+    // Use the Mocha CLI to run the test with proper ES module support
+    execSync(`npx mocha ${testFile} --experimental-modules`, { stdio: 'inherit' });
     console.log(`${colors.green}✓ ${testName} passed${colors.reset}\n`);
     return true;
   } catch (error) {
