@@ -15,7 +15,7 @@ function createWebSocketConnection() {
     const connectionTimeout = setTimeout(() => {
       ws.terminate();
       reject(new Error('WebSocket connection timeout'));
-    }, 5000);
+    }, 2000); // Shorter timeout
     
     ws.on('open', () => {
       clearTimeout(connectionTimeout);
@@ -30,7 +30,7 @@ function createWebSocketConnection() {
 }
 
 // Helper function to wait for a specific message type
-function waitForMessage(ws, expectedType, timeoutMs = 5000) {
+function waitForMessage(ws, expectedType, timeoutMs = 2000) { // Shorter timeout
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       cleanup();
@@ -59,7 +59,7 @@ function waitForMessage(ws, expectedType, timeoutMs = 5000) {
 }
 
 describe('WebSocket Tests', function() {
-  this.timeout(10000); // Increase timeout for WebSocket tests
+  this.timeout(3000); // Shorter timeout for WebSocket tests to avoid hanging
   
   let ws;
   
