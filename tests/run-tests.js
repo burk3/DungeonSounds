@@ -1,7 +1,12 @@
 // Test runner for the D&D Soundboard test suite
-const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
+import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get current directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Colors for output formatting
 const colors = {
@@ -92,12 +97,11 @@ function main() {
   process.exit(allPassed ? 0 : 1);
 }
 
-// Run the main function if this file is executed directly
-if (require.main === module) {
-  main();
-}
+// Run the main function
+main();
 
-module.exports = {
+// Export functions for other modules
+export {
   getTestFiles,
   runTest
 };
