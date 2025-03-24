@@ -1,8 +1,13 @@
 // Storage Tests
-const { expect } = require('chai');
-const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
+import chai from 'chai';
+import fetch from 'node-fetch';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const { expect } = chai;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Base URL for API tests
 const API_BASE = 'http://localhost:5000';
@@ -137,12 +142,5 @@ describe('Storage Tests', function() {
   });
 });
 
-if (require.main === module) {
-  // Run tests directly if this file is executed directly
-  const Mocha = require('mocha');
-  const mocha = new Mocha();
-  mocha.addFile(__filename);
-  mocha.run(failures => {
-    process.exitCode = failures ? 1 : 0;
-  });
-}
+// For direct execution in ES modules context
+// We're using the mocha CLI tool through our test runner

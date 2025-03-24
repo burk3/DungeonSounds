@@ -1,7 +1,9 @@
 // Integration Tests
-const { expect } = require('chai');
-const fetch = require('node-fetch');
-const WebSocket = require('ws');
+import chai from 'chai';
+import fetch from 'node-fetch';
+import WebSocket from 'ws';
+
+const { expect } = chai;
 
 // Base URL for API tests
 const API_BASE = 'http://localhost:5000';

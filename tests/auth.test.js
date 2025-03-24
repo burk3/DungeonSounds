@@ -110,12 +110,5 @@ describe('Authentication Tests', function() {
   });
 });
 
-if (require.main === module) {
-  // Run tests directly if this file is executed directly
-  const Mocha = require('mocha');
-  const mocha = new Mocha();
-  mocha.addFile(__filename);
-  mocha.run(failures => {
-    process.exitCode = failures ? 1 : 0;
-  });
-}
+// For direct execution in ES modules context
+// We're using the mocha CLI tool through our test runner
