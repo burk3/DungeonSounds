@@ -1,5 +1,5 @@
 // WebSocket Tests
-import chai from 'chai';
+import * as chai from 'chai';
 import WebSocket from 'ws';
 
 const { expect } = chai;

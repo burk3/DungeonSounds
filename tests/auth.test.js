@@ -23,9 +23,8 @@ describe('Authentication Tests', function() {
   });
   
   // Test protected routes return 401 without authentication
-  it('should require authentication for protected routes', async function() {
+  it('should require authentication for admin routes', async function() {
     const endpoints = [
-      '/api/sounds',
       '/api/admin/allowed-users'
     ];
     
@@ -33,6 +32,19 @@ describe('Authentication Tests', function() {
       const res = await fetch(`${API_BASE}${endpoint}`);
       expect(res.status).to.be.oneOf([401, 403], 
         `Endpoint ${endpoint} should require authentication`);
+    }
+  });
+  
+  // Test public endpoints are accessible
+  it('should allow access to public endpoints', async function() {
+    const endpoints = [
+      '/api/sounds'
+    ];
+    
+    for (const endpoint of endpoints) {
+      const res = await fetch(`${API_BASE}${endpoint}`);
+      expect(res.status).to.equal(200,
+        `Endpoint ${endpoint} should be publicly accessible`);
     }
   });
   

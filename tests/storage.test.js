@@ -1,5 +1,5 @@
 // Storage Tests
-import chai from 'chai';
+import * as chai from 'chai';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
